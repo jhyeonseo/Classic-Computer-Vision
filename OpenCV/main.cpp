@@ -3,19 +3,14 @@
 
 int main()
 {
-	//Mat input = imread("dogcat.jpeg",0);
-	Mat input = Mat::ones(500, 500, CV_8UC3);
-	imshow("window", input);
-	waitKey(0);
-	for (int i = 0; i < input.cols; i++)
-		for (int j = 0; j < input.rows; j++)
-			PixelValue(input, i, j);
+	Mat input1 = imread("dog1.jpg", 1);
+	Mat input2 = imread("cat1.jpg", 1);
 
+	CVLAB MYLab;
+	MYLab.Insert(input1);
+	MYLab.Insert(input2);
+	MYLab.Editor();
 
-
-
-
-	waitKey(0);
 
 	return 0;
 }
