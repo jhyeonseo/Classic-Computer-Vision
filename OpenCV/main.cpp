@@ -8,12 +8,8 @@ int main()
 
 	CVLAB MYLab;
 
-	MYLab.Insert(input1);
-	MYLab.Insert(input2);
+	//Mat out = MYLab.RESIZE(input2, 5 , 0);
 
-	//MYLab.GRAY(input2, 400, 400, 100);
-	//MYLab.Editor();
-	//MYLab.RESIZE(input2, sqrt(3.141592));
 	MYLab.ROTATE(input2, 50);
 
 	return 0;

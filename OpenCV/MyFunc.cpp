@@ -41,7 +41,7 @@ void CVLAB::Editor()
 			{
 				imshow(std::to_string(i), this->storage[i][0]);
 
-				if (event[i] == EVENT_MOUSEMOVE)
+				if (event[i] == EVENT_LBUTTONDOWN)
 				{
 					std::cout << "Window " << i << " ";
 					PixelValue(this->storage[i][0], x, y);
@@ -114,125 +114,82 @@ void CVLAB::GRAY(Mat img, int x, int y, int BLK)
 	imshow("GRAY", gray);
 	waitKey(1);
 }
-void CVLAB::RESIZE(Mat img, int x, int y)
+Mat CVLAB::RESIZE(Mat img,  double scalor, int option)
 {
-	Mat resize(y, x, CV_8UC3);
-
-	double ratio_x = (double)img.rows / (double)x;
-	double ratio_y = (double)img.cols / (double)y;
-
-	for (int i = 0; i < x; i++)
-	{
-		int i_orgin = std::floor((double)i * (double)ratio_x);
-		if (i_orgin < 0 || i_orgin + 1 >= img.cols)
-			break;
-
-		for (int j = 0; j < y; j++)
-		{
-			int j_orgin = std::floor((double)j * (double)ratio_y);
-			if (j_orgin < 0 || j_orgin + 1 >= img.rows)
-				break;
-
-			double value_R = 0;
-			double value_B = 0;
-			double value_G = 0;
-
-			value_R += img.at<Vec3b>(j_orgin, i_orgin)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_R += img.at<Vec3b>(j_orgin, i_orgin + 1)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_R += img.at<Vec3b>(j_orgin + 1, i_orgin)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			value_R += img.at<Vec3b>(j_orgin + 1, i_orgin + 1)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-
-			value_B += img.at<Vec3b>(j_orgin, i_orgin)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_B += img.at<Vec3b>(j_orgin, i_orgin + 1)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_B += img.at<Vec3b>(j_orgin + 1, i_orgin)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			value_B += img.at<Vec3b>(j_orgin + 1, i_orgin + 1)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-
-			value_G += img.at<Vec3b>(j_orgin, i_orgin)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_G += img.at<Vec3b>(j_orgin, i_orgin + 1)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_G += img.at<Vec3b>(j_orgin + 1, i_orgin)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			value_G += img.at<Vec3b>(j_orgin + 1, i_orgin + 1)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			
-			double normalize = 0;
-			normalize +=  std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			normalize +=  std::sqrt(std::pow(i * ratio_x - i_orgin+1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			normalize +=  std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin+1, 2));
-			normalize +=  std::sqrt(std::pow(i * ratio_x - i_orgin+1, 2) + std::pow(j * ratio_y - j_orgin+1, 2));
-		
-			resize.at<Vec3b>(j, i)[2] = round(value_R / normalize);
-			resize.at<Vec3b>(j, i)[0] = round(value_B/ normalize);
-			resize.at<Vec3b>(j, i)[1] = round(value_G/ normalize);
-		}
-	}
-
-	imshow("ORGINAL", img);
-	imshow("RESIZE", resize);
-	waitKey(0);
-}
-void CVLAB::RESIZE(Mat img, double scalor)
-{
+	scalor = sqrt(scalor * scalor);
 	int x = round(img.cols * scalor);
 	int y = round(img.rows * scalor);
-
-	Mat resize(y, x, CV_8UC3);
-
 	double ratio_x = (double)img.rows / (double)x;
 	double ratio_y = (double)img.cols / (double)y;
+	Mat resize(y, x, CV_8UC3);
 
 	for (int i = 0; i < x; i++)
 	{
-		int i_orgin = std::floor((double)i * (double)ratio_x);
-		if (i_orgin<0 || i_orgin+1>=img.cols)
+		int i_orgin = std::floor(i * ratio_x);
+		if (i_orgin + 1 == img.cols)
 			break;
 
 		for (int j = 0; j < y; j++)
 		{
-			int j_orgin = std::floor((double)j * (double)ratio_y);
-			if (j_orgin<0 || j_orgin+1>=img.rows)
+			int j_orgin = std::floor(j * ratio_y);
+			if (j_orgin + 1 == img.rows)
 				break;
 
-			double value_R = 0;
-			double value_B = 0;
-			double value_G = 0;
+			Vec3d value = 0;
+			if (option == 0)
+			{
+				Vec3d value1, value2, value3, value4 = 0;
+				value1 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin) * (1 - (i * ratio_x - i_orgin));
+				value1 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin + 1) * (i * ratio_x - i_orgin);
+				value1 = value1 * (1 - (j * ratio_y - j_orgin));
+				value2 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin) * (1 - (i * ratio_x - i_orgin));
+				value2 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin + 1) * (i * ratio_x - i_orgin);
+				value2 = value2 * (j * ratio_y - j_orgin);
+				value3 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin) * (1 - (j * ratio_y - j_orgin));
+				value3 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin) * (j * ratio_y - j_orgin);
+				value3 = value3 * (1 - (i * ratio_x - i_orgin));
+				value4 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin + 1) * (1 - (j * ratio_y - j_orgin));
+				value4 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin + 1) * (j * ratio_y - j_orgin);
+				value4 = value4 * (i * ratio_x - i_orgin);
 
-			value_R += img.at<Vec3b>(j_orgin, i_orgin)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_R += img.at<Vec3b>(j_orgin, i_orgin + 1)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_R += img.at<Vec3b>(j_orgin + 1, i_orgin)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			value_R += img.at<Vec3b>(j_orgin + 1, i_orgin + 1)[2] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
+				value = (value1 + value2 + value3 + value4) / 2;
+			}
+			else if (option == 1)
+			{
+				double normalize = 0;
+				value += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin) * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
+				value += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin + 1) * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
+				value += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin) * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
+				value += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin + 1) * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
+				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
+				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
+				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
+				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
+				value = value / normalize;
+			}
+			else if (option == 2)
+			{
+				int neighbor_x = round(i * ratio_x);
+				int neighbor_y = round(j * ratio_y);
 
-			value_B += img.at<Vec3b>(j_orgin, i_orgin)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_B += img.at<Vec3b>(j_orgin, i_orgin + 1)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_B += img.at<Vec3b>(j_orgin + 1, i_orgin)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			value_B += img.at<Vec3b>(j_orgin + 1, i_orgin + 1)[0] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
+				value = (Vec3d)img.at<Vec3b>(neighbor_y, neighbor_x);
+			}
 
-			value_G += img.at<Vec3b>(j_orgin, i_orgin)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_G += img.at<Vec3b>(j_orgin, i_orgin + 1)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			value_G += img.at<Vec3b>(j_orgin + 1, i_orgin)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			value_G += img.at<Vec3b>(j_orgin + 1, i_orgin + 1)[1] * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-
-			double normalize = 0;
-			normalize += std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			normalize += std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-			normalize += std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-			normalize += std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-
-			resize.at<Vec3b>(j, i)[2] = round(value_R / normalize);
-			resize.at<Vec3b>(j, i)[0] = round(value_B / normalize);
-			resize.at<Vec3b>(j, i)[1] = round(value_G / normalize);
+			resize.at<Vec3b>(j, i) = (Vec3b)value;
 		}
 	}
 
-	imshow("ORGINAL", img);
-	imshow("RESIZE", resize);
-	waitKey(0);
+	imwrite("Bi-Linear.bmp", resize);
+	return resize;
 }
-void CVLAB::ROTATE(Mat img, double angle)
+void CVLAB::ROTATE(Mat img, double angle, int option)
 {
 	Mat rotate = Mat::zeros(img.rows, img.cols, CV_8UC3);
 	angle = -angle * (3.141592 / 180);
 	
 
-	int x_center = rotate.cols / 2;
-	int y_center = rotate.rows / 2;
+	double x_center = rotate.cols / 2;
+	double y_center = rotate.rows / 2;
 
 	double ROT[2][2] = { {cos(angle),sin(angle)},{-sin(angle),cos(angle)} };
 
@@ -240,16 +197,41 @@ void CVLAB::ROTATE(Mat img, double angle)
 	{
 		for (int y = 0; y < rotate.rows; y++)
 		{
-			int x_orgin = ROT[0][0] * (x - x_center) + ROT[0][1] * (y - y_center);
-			int y_orgin = ROT[1][0] * (x - x_center) + ROT[1][1] * (y - y_center);
+			double x_orgin = ROT[0][0] * (x - x_center) + ROT[0][1] * (y - y_center);
+			double y_orgin = ROT[1][0] * (x - x_center) + ROT[1][1] * (y - y_center);
 
 			x_orgin = x_orgin + x_center;
 			y_orgin = y_orgin + y_center;
 
-			if (x_orgin < 0 || x_orgin >= img.cols || y_orgin < 0 || y_orgin >= img.rows)
+			if (x_orgin < 0.0 || x_orgin >= (double)img.cols || y_orgin < 0.0 || y_orgin >= (double)img.rows)
 				continue;
 
-			rotate.at<Vec3b>(y, x) = img.at<Vec3b>(y_orgin, x_orgin);
+			int x_left = floor(x_orgin);
+			int x_right = x_left + 1;
+			int y_bot = floor(y_orgin);
+			int y_top = y_bot + 1;
+			
+			Vec3d value = 0;
+			if (option == 0)
+			{
+				Vec3d value1, value2, value3, value4 = 0;
+				value1 += (Vec3d)img.at<Vec3b>(y_bot, x_left) * (1 - (x_orgin - x_left));
+				value1 += (Vec3d)img.at<Vec3b>(y_bot, x_right) * (x_orgin - x_left);
+				value1 = value1 * (1 - (y_orgin - y_bot));
+				value2 += (Vec3d)img.at<Vec3b>(y_top, x_left) * (1 - (x_orgin - x_left));
+				value2 += (Vec3d)img.at<Vec3b>(y_top, x_right) * (x_orgin - x_left);
+				value2 = value2 * (y_orgin - y_bot);
+				value3 += (Vec3d)img.at<Vec3b>(y_bot, x_left) * (1 - (y_orgin - y_bot));
+				value3 += (Vec3d)img.at<Vec3b>(y_top, x_left) * (y_orgin - y_bot);
+				value3 = value3 * (1 - (x_orgin - x_left));
+				value4 += (Vec3d)img.at<Vec3b>(y_bot, x_right) * (1 - (y_orgin - y_bot));
+				value4 += (Vec3d)img.at<Vec3b>(y_top, x_right) * (y_orgin - y_bot);
+				value4 = value4 * (x_orgin - x_left);
+
+				value = (value1 + value2 + value3 + value4) / 2;
+			}
+			
+			rotate.at<Vec3b>(y, x) = (Vec3b)value;
 		}
 	}
 
@@ -285,4 +267,3 @@ void PixelValue(Mat img, int x, int y)
 		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
 	}
 }
-
