@@ -155,11 +155,16 @@ Mat CVLAB::RESIZE(Mat img,  double scalor, int option)
 			}
 			else if (option == 2)
 			{
-				int neighbor_x = round(x_orgin);
-				int neighbor_y = round(y_orgin);
+				int x_neighbor = round(x_orgin);
+				int y_neighbor = round(y_orgin);
 
-				value = (Vec3d)img.at<Vec3b>(neighbor_y, neighbor_x);
+				value = (Vec3d)img.at<Vec3b>(y_neighbor, x_neighbor);
 			}
+			else if (option == 3)
+			{
+				value = (Vec3d)img.at<Vec3b>(y_bot, x_left);
+			}
+
 			resize.at<Vec3b>(y, x) = (Vec3b)value;
 		}
 	}
@@ -229,10 +234,14 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 			}
 			else if (option == 2)
 			{
-				int neighbor_x = round(x_orgin);
-				int neighbor_y = round(y_orgin);
+				int x_neighbor = round(x_orgin);
+				int y_neighbor = round(y_orgin);
 
-				value = (Vec3d)img.at<Vec3b>(neighbor_y, neighbor_x);
+				value = (Vec3d)img.at<Vec3b>(y_neighbor, x_neighbor);
+			}
+			else if (option == 3)
+			{
+				value = (Vec3d)img.at<Vec3b>(y_bot, x_left);
 			}
 			
 			rotate.at<Vec3b>(y, x) = (Vec3b)value;

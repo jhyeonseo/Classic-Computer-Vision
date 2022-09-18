@@ -3,20 +3,24 @@
 
 int main()
 {
-	Mat input1 = imread("dog1.jpg", 1);
-	Mat input2 = imread("cat1.jpg", 1);
-	Mat input3 = imread("space1.jpg", 1);
+	Mat input1 = imread("../pictures/orginal/dog1.jpg", 1);
+	Mat input2 = imread("../pictures/orginal/cat1.jpg", 1);
+	Mat input3 = imread("../pictures/orginal/space1.jpg", 1);
 	CVLAB MYLab;
 
-	Mat resize_nn = MYLab.RESIZE(input3, 16 , 2);
-	Mat resize_linear = MYLab.RESIZE(input3, 16);
-	imwrite("resize_NN.bmp", resize_nn);
-	imwrite("resize_Linear.bmp", resize_linear);
+	Mat resize_linear = MYLab.RESIZE(input2, 7.15, 0);
+	Mat resize_cubic= MYLab.RESIZE(input2, 7.15, 1);
+	Mat resize_nn = MYLab.RESIZE(input2, 7.15, 3);
+	imwrite("../pictures/converted/resize_linear.bmp", resize_linear);
+	imwrite("../pictures/converted/resize_cubic.bmp", resize_cubic);
+	imwrite("../pictures/converted/resize_nn.bmp", resize_nn);
 
-	Mat rotate_nn = MYLab.ROTATE(input3, 50, 2);
-	Mat rotate_linear = MYLab.ROTATE(input3, 50);
-	imwrite("rotate_NN.bmp", rotate_nn);
-	imwrite("rotate_Linear.bmp", rotate_linear);
+	Mat rotate_linear = MYLab.ROTATE(input2, 71.5);
+	Mat rotate_cubic = MYLab.ROTATE(input2, 71.5, 1);
+	Mat rotate_nn = MYLab.ROTATE(input2, 71.5, 3);
+	imwrite("../pictures/converted/rotate_linear.bmp", rotate_linear);
+	imwrite("../pictures/converted/rotate_cubic.bmp", rotate_cubic);
+	imwrite("../pictures/converted/rotate_nn.bmp", rotate_nn);
 
 	return 0;
 }
