@@ -20,19 +20,19 @@ void CVLAB::Editor()
 	for (int i = 0; i < this->storage.size(); i++)
 		MouseData[i] = new void* [4];
 
+
+	for (int i = 0; i < this->storage.size(); i++)
+	{
+		event[i] = -1;
+		MouseData[i][0] = &event[i];
+		MouseData[i][1] = &x;
+		MouseData[i][2] = &y;
+		MouseData[i][3] = &flags;
+		cv::namedWindow(std::to_string(i));
+		setMouseCallback(std::to_string(i), MOUSEINF, MouseData[i]);
+	}
 	if (command == 'p')
 	{
-		for (int i = 0; i < this->storage.size(); i++)
-		{
-			event[i] = -1;
-			MouseData[i][0] = &event[i];
-			MouseData[i][1] = &x;
-			MouseData[i][2] = &y;
-			MouseData[i][3] = &flags;
-			cv::namedWindow(std::to_string(i), 0);
-			setMouseCallback(std::to_string(i), MOUSEINF, MouseData[i]);
-		}
-		
 		while (1)
 		{
 			waitKey(1);
@@ -48,41 +48,27 @@ void CVLAB::Editor()
 				}
 				event[i] = -1;
 			}
-
 		}
 	}
 	else if (command == 'g')
 	{
-		cv::namedWindow("GRAY", 0);
-
-		for (int i = 0; i < this->storage.size(); i++)
-		{
-			event[i] = -1;
-			MouseData[i][0] = &event[i];
-			MouseData[i][1] = &x;
-			MouseData[i][2] = &y;
-			MouseData[i][3] = &flags;
-			setMouseCallback("GRAY", MOUSEINF, MouseData[i]);
-		}
-
+		Mat* gray = new Mat[this->storage.size()];
 		while (1)
 		{
-			waitKey(1);
-
 			for (int i = 0; i < this->storage.size(); i++)
 			{
 				if (event[i] == EVENT_MOUSEMOVE)
 				{
-					GRAY(this->storage[i][0], x, y, 100);
+					gray[i] = GRAY(this->storage[i][0], x, y, 100);
+					imshow(std::to_string(i), gray[i]);
 				}
+				waitKey(1);
 				event[i] = -1;
 			}
 		}
+		delete[]gray;
 	}
-	else if (command == 's')
-	{
-		// CALL RESIZE FUNCTION!
-	}
+
 
 	delete[]event;
 	for (int i = 0; i < this->storage.size(); i++)
@@ -90,99 +76,97 @@ void CVLAB::Editor()
 	delete[]MouseData;
 	
 }
-void CVLAB::GRAY(Mat img, int x, int y, int BLK)
+Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
 {
 	Mat gray = img.clone();
-
 
 	for (int i = x - BLK; i < x + BLK; i++)
 	{
 		if (i<0 || i>img.cols)
 			continue;
-
 		for (int j = y - BLK; j < y + BLK; j++)
 		{
 			if (j<0 || i>img.rows)
 				continue;
 
-			int value = (img.at<Vec3b>(j, i)[2] + img.at<Vec3b>(j, i)[0] + img.at<Vec3b>(j, i)[1]) / 3;
-
-			gray.at<Vec3b>(j, i)[0] = gray.at<Vec3b>(j, i)[1] = gray.at<Vec3b>(j, i)[2] = value;
+			double value = (img.at<Vec3b>(j, i)[2] + img.at<Vec3b>(j, i)[0] + img.at<Vec3b>(j, i)[1]) / 3;
+			gray.at<Vec3b>(j, i)[0] = gray.at<Vec3b>(j, i)[1] = gray.at<Vec3b>(j, i)[2] = round(value);
 		}
 	}
 
-	imshow("GRAY", gray);
-	waitKey(1);
+	return gray;
 }
 Mat CVLAB::RESIZE(Mat img,  double scalor, int option)
 {
-	scalor = sqrt(scalor * scalor);
-	int x = round(img.cols * scalor);
-	int y = round(img.rows * scalor);
-	double ratio_x = (double)img.rows / (double)x;
-	double ratio_y = (double)img.cols / (double)y;
-	Mat resize(y, x, CV_8UC3);
+	scalor = sqrt(scalor);
+	int width = round(img.cols * scalor);
+	int height = round(img.rows * scalor);
+	double ratio_x = (double)img.cols / (double)width;
+	double ratio_y = (double)img.rows / (double)height;
 
-	for (int i = 0; i < x; i++)
+	Mat resize(height, width, CV_8UC3);
+
+	for (int x = 0; x < resize.cols; x++)
 	{
-		int i_orgin = std::floor(i * ratio_x);
-		if (i_orgin + 1 == img.cols)
-			break;
-
-		for (int j = 0; j < y; j++)
+		for (int y = 0; y < resize.rows; y++)
 		{
-			int j_orgin = std::floor(j * ratio_y);
-			if (j_orgin + 1 == img.rows)
-				break;
+			int x_orgin = std::floor(x * ratio_x);
+			int y_orgin = std::floor(y * ratio_y);
+
+			int x_left = floor(x_orgin);
+			int x_right = x_left + 1;
+			int y_bot = floor(y_orgin);
+			int y_top = y_bot + 1;
+			
+			if (x_right >= img.cols || y_top >= img.rows || x_left < 0 || y_bot < 0)
+				continue;
 
 			Vec3d value = 0;
 			if (option == 0)
 			{
 				Vec3d value1, value2, value3, value4 = 0;
-				value1 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin) * (1 - (i * ratio_x - i_orgin));
-				value1 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin + 1) * (i * ratio_x - i_orgin);
-				value1 = value1 * (1 - (j * ratio_y - j_orgin));
-				value2 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin) * (1 - (i * ratio_x - i_orgin));
-				value2 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin + 1) * (i * ratio_x - i_orgin);
-				value2 = value2 * (j * ratio_y - j_orgin);
-				value3 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin) * (1 - (j * ratio_y - j_orgin));
-				value3 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin) * (j * ratio_y - j_orgin);
-				value3 = value3 * (1 - (i * ratio_x - i_orgin));
-				value4 += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin + 1) * (1 - (j * ratio_y - j_orgin));
-				value4 += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin + 1) * (j * ratio_y - j_orgin);
-				value4 = value4 * (i * ratio_x - i_orgin);
+				value1 += (Vec3d)img.at<Vec3b>(y_bot, x_left) * (1 - (x_orgin - x_left));
+				value1 += (Vec3d)img.at<Vec3b>(y_bot, x_right) * (x_orgin - x_left);
+				value1 = value1 * (1 - (y_orgin - y_bot));
+				value2 += (Vec3d)img.at<Vec3b>(y_top, x_left) * (1 - (x_orgin - x_left));
+				value2 += (Vec3d)img.at<Vec3b>(y_top, x_right) * (x_orgin - x_left);
+				value2 = value2 * (y_orgin - y_bot);
+				value3 += (Vec3d)img.at<Vec3b>(y_bot, x_left) * (1 - (y_orgin - y_bot));
+				value3 += (Vec3d)img.at<Vec3b>(y_top, x_left) * (y_orgin - y_bot);
+				value3 = value3 * (1 - (x_orgin - x_left));
+				value4 += (Vec3d)img.at<Vec3b>(y_bot, x_right) * (1 - (y_orgin - y_bot));
+				value4 += (Vec3d)img.at<Vec3b>(y_top, x_right) * (y_orgin - y_bot);
+				value4 = value4 * (x_orgin - x_left);
 
 				value = (value1 + value2 + value3 + value4) / 2;
 			}
 			else if (option == 1)
 			{
 				double normalize = 0;
-				value += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin) * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-				value += (Vec3d)img.at<Vec3b>(j_orgin, i_orgin + 1) * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-				value += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin) * std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-				value += (Vec3d)img.at<Vec3b>(j_orgin + 1, i_orgin + 1) * std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin, 2));
-				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin, 2));
-				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
-				normalize += std::sqrt(std::pow(i * ratio_x - i_orgin + 1, 2) + std::pow(j * ratio_y - j_orgin + 1, 2));
+				value += (Vec3d)img.at<Vec3b>(y_bot, x_left) * std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_bot, 2));
+				value += (Vec3d)img.at<Vec3b>(y_bot, x_right) * std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_bot, 2));
+				value += (Vec3d)img.at<Vec3b>(y_top, x_left) * std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_top, 2));
+				value += (Vec3d)img.at<Vec3b>(y_top, x_right) * std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_top, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_bot, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_bot, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_top, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_top, 2));
 				value = value / normalize;
 			}
 			else if (option == 2)
 			{
-				int neighbor_x = round(i * ratio_x);
-				int neighbor_y = round(j * ratio_y);
+				int neighbor_x = round(x_orgin);
+				int neighbor_y = round(y_orgin);
 
 				value = (Vec3d)img.at<Vec3b>(neighbor_y, neighbor_x);
 			}
-
-			resize.at<Vec3b>(j, i) = (Vec3b)value;
+			resize.at<Vec3b>(y, x) = (Vec3b)value;
 		}
 	}
 
-	imwrite("Bi-Linear.bmp", resize);
 	return resize;
 }
-void CVLAB::ROTATE(Mat img, double angle, int option)
+Mat CVLAB::ROTATE(Mat img, double angle, int option)
 {
 	Mat rotate = Mat::zeros(img.rows, img.cols, CV_8UC3);
 	angle = -angle * (3.141592 / 180);
@@ -203,13 +187,13 @@ void CVLAB::ROTATE(Mat img, double angle, int option)
 			x_orgin = x_orgin + x_center;
 			y_orgin = y_orgin + y_center;
 
-			if (x_orgin < 0.0 || x_orgin >= (double)img.cols || y_orgin < 0.0 || y_orgin >= (double)img.rows)
-				continue;
-
 			int x_left = floor(x_orgin);
 			int x_right = x_left + 1;
 			int y_bot = floor(y_orgin);
 			int y_top = y_bot + 1;
+
+			if (x_right >= img.cols || y_top >= img.rows || x_left < 0 || y_bot < 0)
+				continue;
 			
 			Vec3d value = 0;
 			if (option == 0)
@@ -230,14 +214,32 @@ void CVLAB::ROTATE(Mat img, double angle, int option)
 
 				value = (value1 + value2 + value3 + value4) / 2;
 			}
+			else if (option == 1)
+			{
+				double normalize = 0;
+				value += (Vec3d)img.at<Vec3b>(y_bot, x_left) * std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_bot, 2));
+				value += (Vec3d)img.at<Vec3b>(y_bot, x_right) * std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_bot, 2));
+				value += (Vec3d)img.at<Vec3b>(y_top, x_left) * std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_top, 2));
+				value += (Vec3d)img.at<Vec3b>(y_top, x_right) * std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_top, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_bot, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_bot, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_top, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_top, 2));
+				value = value / normalize;
+			}
+			else if (option == 2)
+			{
+				int neighbor_x = round(x_orgin);
+				int neighbor_y = round(y_orgin);
+
+				value = (Vec3d)img.at<Vec3b>(neighbor_y, neighbor_x);
+			}
 			
 			rotate.at<Vec3b>(y, x) = (Vec3b)value;
 		}
 	}
 
-
-	imshow("ROTATE", rotate);
-	waitKey(0);
+	return rotate;
 }
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData)
 {

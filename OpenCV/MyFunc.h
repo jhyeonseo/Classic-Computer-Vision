@@ -17,9 +17,9 @@ public:
 	CVLAB();
 	void Insert(Mat img);
 	void Editor();
-	void GRAY(Mat img, int x, int y, int BLK);
+	Mat GRAY(Mat img, int x, int y, int BLK = 0);
 	Mat RESIZE(Mat img, double scalor, int option = 0);
-	void ROTATE(Mat img, double angle, int option = 0);
+	Mat ROTATE(Mat img, double angle, int option = 0);
 };
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData);
 void PixelValue(Mat img, int x, int y);
