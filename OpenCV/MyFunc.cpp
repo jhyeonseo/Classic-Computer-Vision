@@ -361,11 +361,11 @@ Mat PHASE(Mat fx, Mat fy)
 		for (int j = 0; j < fx.rows; j++)
 		{
 			double angle = atan2(fy.at<double>(j, i), fx.at<double>(j, i));
-			angle = -angle * (3.141592 / 180);
+			angle = angle * (180 / 3.141592);
 
 			if (angle < 0)
 				angle = angle + 180;
-			//printf("%f\n", angle);
+			
 			result.at<double>(j, i) = angle;
 		}
 	}
