@@ -74,7 +74,7 @@ void CVLAB::Editor()
 	for (int i = 0; i < this->storage.size(); i++)
 		delete[]MouseData[i];
 	delete[]MouseData;
-	
+
 }
 Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
 {
@@ -96,7 +96,7 @@ Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
 
 	return gray;
 }
-Mat CVLAB::RESIZE(Mat img,  double scalor, int option)
+Mat CVLAB::RESIZE(Mat img, double scalor, int option)
 {
 	scalor = sqrt(scalor);
 	int width = round(img.cols * scalor);
@@ -117,7 +117,7 @@ Mat CVLAB::RESIZE(Mat img,  double scalor, int option)
 			int x_right = x_left + 1;
 			int y_bot = floor(y_orgin);
 			int y_top = y_bot + 1;
-			
+
 			if (x_right >= img.cols || y_top >= img.rows || x_left < 0 || y_bot < 0)
 				continue;
 
@@ -175,7 +175,7 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 {
 	Mat rotate = Mat::zeros(img.rows, img.cols, CV_8UC3);
 	angle = -angle * (3.141592 / 180);
-	
+
 
 	double x_center = rotate.cols / 2;
 	double y_center = rotate.rows / 2;
@@ -199,7 +199,7 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 
 			if (x_right >= img.cols || y_top >= img.rows || x_left < 0 || y_bot < 0)
 				continue;
-			
+
 			Vec3d value = 0;
 			if (option == 0)
 			{
@@ -243,7 +243,7 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 			{
 				value = (Vec3d)img.at<Vec3b>(y_bot, x_left);
 			}
-			
+
 			rotate.at<Vec3b>(y, x) = (Vec3b)value;
 		}
 	}
@@ -277,4 +277,98 @@ void PixelValue(Mat img, int x, int y)
 		int Gray = img.at<uchar>(y, x);
 		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
 	}
+}
+Mat CONV(Mat input, Mat filter) // size=(x_size, y_size)
+{
+	Mat output = Mat::zeros(input.rows, input.cols, CV_64FC1); // FOR GRAY IMAGE
+
+	for (int cx = 0; cx < input.cols; cx++)
+	{
+		for (int cy = 0; cy < input.rows; cy++)
+		{
+			double value = 0;
+			for (int i = 0; i < filter.cols; i++)
+			{
+				for (int j = 0; j < filter.rows; j++)
+				{
+					int x_left = cx - filter.cols / 2;
+					int y_bot = cy - filter.rows / 2;
+					if (x_left + i < 0 || x_left + i >= input.cols || y_bot + i < 0 || y_bot + i >= input.rows)
+						continue;
+
+					value += input.at<uchar>(y_bot + j, x_left + i) * filter.at<double>(j, i);
+				}
+				output.at<double>(cy, cx) = value;
+			}
+		}
+	}
+
+	return output;
+}
+Mat NORMALIZE(Mat input)
+{
+	double max = 0;
+	double min = 0;
+	Mat output(input.rows, input.cols, CV_8UC1);
+
+	for (int i = 0; i < input.cols; i++)
+	{
+		for (int j = 0; j < input.rows; j++)
+		{
+			double value = input.at<double>(j, i);
+
+			if (value > max)
+				max = value;
+			else if (value < min)
+				min = value;
+		}
+	}
+
+	double ratio = 255 / (max - min);
+
+	for (int i = 0; i < input.cols; i++)
+	{
+		for (int j = 0; j < input.rows; j++)
+		{
+			output.at<uchar>(j, i) = input.at<double>(j, i) * ratio;
+		}
+	}
+
+	return output;
+}
+Mat MAG(Mat fx, Mat fy)
+{
+	Mat result(fx.rows, fx.cols, CV_64FC1);
+
+	for (int i = 0; i < fx.cols; i++)
+	{
+		for (int j = 0; j < fx.rows; j++)
+		{
+			double value = std::sqrt(fx.at<double>(j, i) * fx.at<double>(j, i) + fy.at<double>(j, i) * fy.at<double>(j, i));
+			//printf("%f\n", value);
+			result.at<double>(j, i) = value * value;
+		}
+	}
+
+	return result;
+}
+Mat PHASE(Mat fx, Mat fy)
+{
+	Mat result(fx.rows, fx.cols, CV_64FC1);
+
+	for (int i = 0; i < fx.cols; i++)
+	{
+		for (int j = 0; j < fx.rows; j++)
+		{
+			double angle = atan2(fy.at<double>(j, i), fx.at<double>(j, i));
+			angle = -angle * (3.141592 / 180);
+
+			if (angle < 0)
+				angle = angle + 180;
+			//printf("%f\n", angle);
+			result.at<double>(j, i) = angle;
+		}
+	}
+
+	return result;
 }

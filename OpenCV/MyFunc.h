@@ -23,3 +23,7 @@ public:
 };
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData);
 void PixelValue(Mat img, int x, int y);
+Mat CONV(Mat input, Mat filter);
+Mat NORMALIZE(Mat input);
+Mat MAG(Mat fx, Mat fy);
+Mat PHASE(Mat fx, Mat fy);

@@ -4,23 +4,26 @@
 int main()
 {
 	Mat input1 = imread("../pictures/orginal/dog1.jpg", 1);
-	Mat input2 = imread("../pictures/orginal/cat1.jpg", 1);
+	Mat input2 = imread("../pictures/orginal/text1.jpg", 0);
 	Mat input3 = imread("../pictures/orginal/space1.jpg", 1);
 	CVLAB MYLab;
 
-	Mat resize_linear = MYLab.RESIZE(input2, 7.15, 0);
-	Mat resize_cubic= MYLab.RESIZE(input2, 7.15, 1);
-	Mat resize_nn = MYLab.RESIZE(input2, 7.15, 3);
-	imwrite("../pictures/converted/resize_linear.bmp", resize_linear);
-	imwrite("../pictures/converted/resize_cubic.bmp", resize_cubic);
-	imwrite("../pictures/converted/resize_nn.bmp", resize_nn);
+	double data_x[] = { -1,0,1,-1,0,1,-1,0,1 };
+	double data_y[] = { -1,-1,-1, 0,0,0, 1,1,1 };
 
-	Mat rotate_linear = MYLab.ROTATE(input2, 71.5);
-	Mat rotate_cubic = MYLab.ROTATE(input2, 71.5, 1);
-	Mat rotate_nn = MYLab.ROTATE(input2, 71.5, 3);
-	imwrite("../pictures/converted/rotate_linear.bmp", rotate_linear);
-	imwrite("../pictures/converted/rotate_cubic.bmp", rotate_cubic);
-	imwrite("../pictures/converted/rotate_nn.bmp", rotate_nn);
+	Mat edge_x(3, 3, CV_64FC1, data_x);
+	Mat edge_y(3, 3, CV_64FC1, data_y);
+
+	Mat grad_x = CONV(input2, edge_x);
+	Mat grad_y = CONV(input2, edge_y);
+
+	Mat result_mag = NORMALIZE(MAG(grad_x, grad_y));
+	Mat result_phase = NORMALIZE(PHASE(grad_x, grad_y));
+
+	imshow("orgin", input2);
+	imshow("mag", result_mag);
+	imshow("phase", result_phase);
+	waitKey();
 
 	return 0;
 }
