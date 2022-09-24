@@ -14,16 +14,26 @@ class CVLAB
 private:
 	std::vector<std::vector<Mat>> storage;
 public:
+	// 사용의 편리성을 위한 함수
 	CVLAB();
 	void Insert(Mat img);
 	void Editor();
+
+	// 이미지 분석을 위한 함수
+	void PixelValue(Mat img, int x, int y);
+	void HOG(Mat input); // Histograms of oriented gradients
+
+	// 이미지 변환을 위한 함수
 	Mat GRAY(Mat img, int x, int y, int BLK = 0);
 	Mat RESIZE(Mat img, double scalor, int option = 0);
 	Mat ROTATE(Mat img, double angle, int option = 0);
+
+	// 수학적 처리를 위한 함수
+	Mat CONV(Mat input, Mat filter);
+	Mat GRADIENT(Mat input);
+	Mat MAGNITUDE(Mat gradient);
+	Mat PHASE(Mat gradient);
+	Mat NORMALIZE(Mat input);
 };
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData);
-void PixelValue(Mat img, int x, int y);
-Mat CONV(Mat input, Mat filter);
-Mat NORMALIZE(Mat input);
-Mat MAG(Mat fx, Mat fy);
-Mat PHASE(Mat fx, Mat fy);
+

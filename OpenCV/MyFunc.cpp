@@ -76,6 +76,32 @@ void CVLAB::Editor()
 	delete[]MouseData;
 
 }
+
+void CVLAB::PixelValue(Mat img, int x, int y)
+{
+	int channel = img.channels();
+	if (channel == 3)
+	{
+		int R = img.at<Vec3b>(y, x)[2];
+		int G = img.at<Vec3b>(y, x)[1];
+		int B = img.at<Vec3b>(y, x)[0];
+		std::cout << "(" << x << ", " << y << ")" << ": ";
+		std::cout << "[" << R << " " << G << " " << B << "]" << std::endl;
+	}
+	else
+	{
+		int Gray = img.at<uchar>(y, x);
+		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
+	}
+}
+void CVLAB::HOG(Mat input)
+{
+
+
+
+
+}
+
 Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
 {
 	Mat gray = img.clone();
@@ -250,6 +276,132 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 
 	return rotate;
 }
+
+Mat CVLAB::CONV(Mat input, Mat filter)
+{
+	Mat output = Mat::zeros(input.rows, input.cols, CV_64FC1);
+
+	for (int cy = 0; cy < input.rows; cy++)
+	{
+		for (int cx = 0; cx < input.cols; cx++)
+		{
+			double value = 0;
+			for (int i = 0; i < filter.rows; i++)
+			{
+				for (int j = 0; j < filter.cols; j++)
+				{
+					int x_left = cx - filter.cols / 2;
+					int y_bot = cy - filter.rows / 2;
+					if (x_left + j < 0 || x_left + j >= input.cols || y_bot + i < 0 || y_bot + i >= input.rows)
+						continue;
+
+					value += input.at<uchar>(y_bot + i, x_left + j) * filter.at<double>(i, j);
+				}
+				output.at<double>(cy, cx) = value;
+			}
+		}
+	}
+
+	return output;
+}
+Mat CVLAB::GRADIENT(Mat input)
+{
+	Mat output(input.rows, input.cols, CV_64FC2);
+
+	double data_x[] = { -1,0,1,-1,0,1,-1,0,1 };
+	double data_y[] = { -1,-1,-1, 0,0,0, 1,1,1 };
+	Mat edge_x(3, 3, CV_64FC1, data_x);
+	Mat edge_y(3, 3, CV_64FC1, data_y);
+	Mat grad_x = CONV(input, edge_x);
+	Mat grad_y = CONV(input, edge_y);
+
+	for (int i = 0; i < input.rows; i++)
+	{
+		for (int j = 0; j < input.cols; j++)
+		{
+			output.at<Vec2d>(i, j) = Vec2d(grad_x.at<double>(i, j), grad_y.at<double>(i, j));
+		}
+	}
+
+	return output;
+}
+Mat CVLAB::MAGNITUDE(Mat gradient)
+{
+	Mat result(gradient.rows, gradient.cols, CV_64FC1);
+
+	for (int i = 0; i < gradient.rows; i++)
+	{
+		for (int j = 0; j < gradient.cols; j++)
+		{
+			double fx = gradient.at<Vec2d>(i, j)[0];
+			double fy = gradient.at<Vec2d>(i, j)[1];
+
+			result.at<double>(i, j) = std::sqrt(fx * fx + fy * fy);
+		}
+	}
+
+	return result;
+}
+Mat CVLAB::PHASE(Mat gradient)
+{
+	Mat result(gradient.rows, gradient.cols, CV_64FC1);
+
+	for (int i = 0; i < gradient.rows; i++)
+	{
+		for (int j = 0; j < gradient.cols; j++)
+		{
+			double fx = gradient.at<Vec2d>(i, j)[0];
+			double fy = gradient.at<Vec2d>(i, j)[1];
+
+			result.at<double>(i, j) = atan2(fy, fx);
+		}
+	}
+
+	return result;
+}
+Mat CVLAB::NORMALIZE(Mat input)
+{
+	int type = input.type();
+	if (type == CV_64FC1)
+	{
+		Mat output(input.rows, input.cols, CV_8UC1);
+		double max = 0;
+		double min = 0;
+
+		for (int i = 0; i < input.cols; i++)
+		{
+			for (int j = 0; j < input.rows; j++)
+			{
+				double value = input.at<double>(j, i);
+
+				if (value > max)
+					max = value;
+				else if (value < min)
+					min = value;
+			}
+		}
+		double ratio = 255 / (max - min);
+		for (int i = 0; i < input.cols; i++)
+		{
+			for (int j = 0; j < input.rows; j++)
+			{
+				output.at<uchar>(j, i) = input.at<double>(j, i) * ratio;
+			}
+		}
+
+		return output;
+	}
+	else
+	{
+		Mat output(input.rows, input.cols, CV_8UC3);
+		/*
+		채널수 조정 
+		타입 조정
+		*/
+		return output;
+	}
+}
+
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData)
 {
 	int** inf = (int**)MouseData;
@@ -260,115 +412,4 @@ void MOUSEINF(int event, int x, int y, int flags, void* MouseData)
 	*inf[3] = flags;
 
 	return;
-}
-void PixelValue(Mat img, int x, int y)
-{
-	int channel = img.channels();
-	if (channel == 3)
-	{
-		int R = img.at<Vec3b>(y, x)[2];
-		int G = img.at<Vec3b>(y, x)[1];
-		int B = img.at<Vec3b>(y, x)[0];
-		std::cout << "(" << x << ", " << y << ")" << ": ";
-		std::cout << "[" << R << " " << G << " " << B << "]" << std::endl;
-	}
-	else
-	{
-		int Gray = img.at<uchar>(y, x);
-		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
-	}
-}
-Mat CONV(Mat input, Mat filter) // size=(x_size, y_size)
-{
-	Mat output = Mat::zeros(input.rows, input.cols, CV_64FC1); // FOR GRAY IMAGE
-
-	for (int cx = 0; cx < input.cols; cx++)
-	{
-		for (int cy = 0; cy < input.rows; cy++)
-		{
-			double value = 0;
-			for (int i = 0; i < filter.cols; i++)
-			{
-				for (int j = 0; j < filter.rows; j++)
-				{
-					int x_left = cx - filter.cols / 2;
-					int y_bot = cy - filter.rows / 2;
-					if (x_left + i < 0 || x_left + i >= input.cols || y_bot + i < 0 || y_bot + i >= input.rows)
-						continue;
-
-					value += input.at<uchar>(y_bot + j, x_left + i) * filter.at<double>(j, i);
-				}
-				output.at<double>(cy, cx) = value;
-			}
-		}
-	}
-
-	return output;
-}
-Mat NORMALIZE(Mat input)
-{
-	double max = 0;
-	double min = 0;
-	Mat output(input.rows, input.cols, CV_8UC1);
-
-	for (int i = 0; i < input.cols; i++)
-	{
-		for (int j = 0; j < input.rows; j++)
-		{
-			double value = input.at<double>(j, i);
-
-			if (value > max)
-				max = value;
-			else if (value < min)
-				min = value;
-		}
-	}
-
-	double ratio = 255 / (max - min);
-
-	for (int i = 0; i < input.cols; i++)
-	{
-		for (int j = 0; j < input.rows; j++)
-		{
-			output.at<uchar>(j, i) = input.at<double>(j, i) * ratio;
-		}
-	}
-
-	return output;
-}
-Mat MAG(Mat fx, Mat fy)
-{
-	Mat result(fx.rows, fx.cols, CV_64FC1);
-
-	for (int i = 0; i < fx.cols; i++)
-	{
-		for (int j = 0; j < fx.rows; j++)
-		{
-			double value = std::sqrt(fx.at<double>(j, i) * fx.at<double>(j, i) + fy.at<double>(j, i) * fy.at<double>(j, i));
-			//printf("%f\n", value);
-			result.at<double>(j, i) = value * value;
-		}
-	}
-
-	return result;
-}
-Mat PHASE(Mat fx, Mat fy)
-{
-	Mat result(fx.rows, fx.cols, CV_64FC1);
-
-	for (int i = 0; i < fx.cols; i++)
-	{
-		for (int j = 0; j < fx.rows; j++)
-		{
-			double angle = atan2(fy.at<double>(j, i), fx.at<double>(j, i));
-			angle = angle * (180 / 3.141592);
-
-			if (angle < 0)
-				angle = angle + 180;
-			
-			result.at<double>(j, i) = angle;
-		}
-	}
-
-	return result;
 }
