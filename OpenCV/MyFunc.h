@@ -9,10 +9,19 @@
 using namespace cv;
 using namespace cv::dnn;
 
+struct Histogram
+{
+	Mat orgin;
+	double** data;
+	int datacount;
+	int bincount;
+};
+
 class CVLAB
 {
 private:
 	std::vector<std::vector<Mat>> storage;
+	std::vector<Histogram> histogram;
 public:
 	// 사용의 편리성을 위한 함수
 	CVLAB();
@@ -21,7 +30,8 @@ public:
 
 	// 이미지 분석을 위한 함수
 	void PixelValue(Mat img, int x, int y);
-	void HOG(Mat input); // Histograms of oriented gradients
+	void Similiarity(Mat base, Mat compare, int type = 0);
+	void HOG(Mat input, int binsize = 9, int cellsize = 64, int blocksize = 4); // Histograms of oriented gradients
 
 	// 이미지 변환을 위한 함수
 	Mat GRAY(Mat img, int x, int y, int BLK = 0);
@@ -35,5 +45,6 @@ public:
 	Mat PHASE(Mat gradient);
 	Mat NORMALIZE(Mat input);
 };
+
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData);
 

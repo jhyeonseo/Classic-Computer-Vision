@@ -94,12 +94,121 @@ void CVLAB::PixelValue(Mat img, int x, int y)
 		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
 	}
 }
-void CVLAB::HOG(Mat input)
+void CVLAB::Similiarity(Mat base, Mat compare, int type)
 {
+	HOG(base);
+	HOG(compare);
+
+	double** basedata = this->histogram[0].data;
+	double** comparedata = this->histogram[1].data;
+
+	double difference = 0;
+	for (int i = 0; i < this->histogram[0].datacount; i++)
+	{
+		double value = 0;
+		for (int j = 0; j < this->histogram[0].bincount; j++)
+		{
+			value += (basedata[i][j] - comparedata[i][j]) * (basedata[i][j] - comparedata[i][j]);
+		}
+
+		difference += value;
+	}
+
+	difference = sqrt(difference);
+	this->histogram.clear();
+
+	waitKey();
+	printf("\n%f\n", difference);
+}
+void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
+{
+	Mat grad = GRADIENT(input);
+	Mat mag = MAGNITUDE(grad);
+	Mat phase = PHASE(grad);
+
+	cellsize = std::sqrt(cellsize);
+	blocksize = std::sqrt(blocksize);
+	double interval = 180.0 / (double)bincount;
+
+	int cellnum_x = input.cols / cellsize;
+	int cellnum_y = input.rows / cellsize;
+	int cellnum_total = cellnum_x * cellnum_y;
+	double** cell = new double* [cellnum_total];
+	for (int i = 0; i < cellnum_total; i++)
+	{
+		cell[i] = new double[bincount];
+		for (int j = 0; j < bincount; j++)
+			cell[i][j] = 0;
+	}
+	int blocknum_x = cellnum_x - blocksize + 1;
+	int blocknum_y = cellnum_y - blocksize + 1;
+	int blocknum_total = blocknum_x * blocknum_y;
+	int block_binsize = bincount * blocksize * blocksize;
+	double** block = new double* [blocknum_total];
+	for (int i = 0; i < blocknum_total; i++)
+	{
+		block[i] = new double[block_binsize];
+		for (int j = 0; j < block_binsize; j++)
+			block[i][j] = 0;
+	}
 
 
+	for (int cellindex_y = 0; cellindex_y < cellnum_y; cellindex_y++)
+	{
+		int y_first = cellindex_y * cellsize;
+		for (int cellindex_x = 0; cellindex_x < cellnum_x; cellindex_x++)
+		{
+			int x_first = cellindex_x * cellsize;
+			int cellindex = cellindex_y * cellnum_x + cellindex_x;
 
+			for (int i = 0; i < cellsize; i++)
+			{
+				for (int j = 0; j < cellsize; j++)
+				{
+					double degree = phase.at<double>(y_first + i, x_first + j) * (180 / 3.141592);
+					if (degree < 0.0)
+						degree += 180.f;
 
+					int binindex = (int)round(degree / interval);
+					if (binindex >= bincount)
+						binindex = bincount - 1;
+					cell[cellindex][binindex] += mag.at<double>(y_first + i, x_first + j);
+				}
+			}
+		}
+	}
+
+	for (int blockindex_y = 0; blockindex_y < blocknum_y; blockindex_y++)
+	{
+		for (int blockindex_x = 0; blockindex_x < blocknum_x; blockindex_x++)
+		{
+			int blockindex = blockindex_y * blocknum_x + blockindex_x;
+			int cellindex = blockindex_y * cellnum_x + blockindex_x;
+			double total = 0;
+			for (int i = 0; i < blocksize; i++)
+			{
+				for (int j = 0; j < blocksize; j++)
+				{
+					for (int k = 0; k < bincount; k++)
+					{
+						block[blockindex][k + (i * blocksize + j) * bincount] += cell[cellindex + (i * cellnum_x + j)][k];
+					}
+				}
+			}
+			for (int k = 0; k < block_binsize; k++)
+				total += block[blockindex][k] * block[blockindex][k];
+			for (int k = 0; k < block_binsize; k++)
+				block[blockindex][k] = block[blockindex][k] / std::sqrt(total);
+		}
+	}
+	
+	struct Histogram output;
+	output.orgin = input;
+	output.data = block;
+	output.bincount = block_binsize;
+	output.datacount = blocknum_total;
+
+	this->histogram.push_back(output);
 }
 
 Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
@@ -290,12 +399,12 @@ Mat CVLAB::CONV(Mat input, Mat filter)
 			{
 				for (int j = 0; j < filter.cols; j++)
 				{
-					int x_left = cx - filter.cols / 2;
-					int y_bot = cy - filter.rows / 2;
-					if (x_left + j < 0 || x_left + j >= input.cols || y_bot + i < 0 || y_bot + i >= input.rows)
+					int x_first = cx - filter.cols / 2;
+					int y_first = cy - filter.rows / 2;
+					if (x_first + j < 0 || x_first + j >= input.cols || y_first + i < 0 || y_first + i >= input.rows)
 						continue;
 
-					value += input.at<uchar>(y_bot + i, x_left + j) * filter.at<double>(i, j);
+					value += input.at<uchar>(y_first + i, x_first + j) * filter.at<double>(i, j);
 				}
 				output.at<double>(cy, cx) = value;
 			}
