@@ -3,25 +3,17 @@
 
 int main()
 {
-	Mat input1 = imread("../pictures/orginal/text1.jpg", 0);
 	Mat base= imread("../pictures/orginal/lecture3.bmp", 0);
 	Mat compare1 = imread("../pictures/orginal/compare1.bmp", 0);
 	Mat compare2 = imread("../pictures/orginal/compare2.bmp", 0);
 	CVLAB MYLab;
 
-	Mat grad = MYLab.GRADIENT(input1);
-	Mat mag = MYLab.NORMALIZE(MYLab.MAGNITUDE(grad));
-	Mat phase = MYLab.NORMALIZE(MYLab.PHASE(grad));
+	double distance1, distance2;
+	distance1 = MYLab.DISTANCE(base, compare1);
+	distance2 = MYLab.DISTANCE(base, compare2);
 
-	/*
-	imshow("orginal", input2);
-	imshow("magnitude map", mag);
-	imshow("phase map", phase);
-	waitKey(1000);
-	*/
-
-	MYLab.Similiarity(base, compare1);
-	MYLab.Similiarity(base, compare2);
+	printf("Distance with lecture3 and compare1: %f\n", distance1);
+	printf("Distance with lecture3 and compare2: %f\n", distance2);
 
 	return 0;
 }

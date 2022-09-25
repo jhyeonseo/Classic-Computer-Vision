@@ -30,7 +30,6 @@ public:
 
 	// 이미지 분석을 위한 함수
 	void PixelValue(Mat img, int x, int y);
-	void Similiarity(Mat base, Mat compare, int type = 0);
 	void HOG(Mat input, int binsize = 9, int cellsize = 64, int blocksize = 4); // Histograms of oriented gradients
 
 	// 이미지 변환을 위한 함수
@@ -44,6 +43,7 @@ public:
 	Mat MAGNITUDE(Mat gradient);
 	Mat PHASE(Mat gradient);
 	Mat NORMALIZE(Mat input);
+	double DISTANCE(Mat base, Mat compare, int type = 0);  // type0: HOG distance
 };
 
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData);

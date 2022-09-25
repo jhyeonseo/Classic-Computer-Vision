@@ -94,32 +94,6 @@ void CVLAB::PixelValue(Mat img, int x, int y)
 		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
 	}
 }
-void CVLAB::Similiarity(Mat base, Mat compare, int type)
-{
-	HOG(base);
-	HOG(compare);
-
-	double** basedata = this->histogram[0].data;
-	double** comparedata = this->histogram[1].data;
-
-	double difference = 0;
-	for (int i = 0; i < this->histogram[0].datacount; i++)
-	{
-		double value = 0;
-		for (int j = 0; j < this->histogram[0].bincount; j++)
-		{
-			value += (basedata[i][j] - comparedata[i][j]) * (basedata[i][j] - comparedata[i][j]);
-		}
-
-		difference += value;
-	}
-
-	difference = sqrt(difference);
-	this->histogram.clear();
-
-	waitKey();
-	printf("\n%f\n", difference);
-}
 void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 {
 	Mat grad = GRADIENT(input);
@@ -143,12 +117,12 @@ void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 	int blocknum_x = cellnum_x - blocksize + 1;
 	int blocknum_y = cellnum_y - blocksize + 1;
 	int blocknum_total = blocknum_x * blocknum_y;
-	int block_binsize = bincount * blocksize * blocksize;
+	int block_bincount = bincount * blocksize * blocksize;
 	double** block = new double* [blocknum_total];
 	for (int i = 0; i < blocknum_total; i++)
 	{
-		block[i] = new double[block_binsize];
-		for (int j = 0; j < block_binsize; j++)
+		block[i] = new double[block_bincount];
+		for (int j = 0; j < block_bincount; j++)
 			block[i][j] = 0;
 	}
 
@@ -165,7 +139,8 @@ void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 			{
 				for (int j = 0; j < cellsize; j++)
 				{
-					double degree = phase.at<double>(y_first + i, x_first + j) * (180 / 3.141592);
+					double degree = phase.at<double>(y_first + i, x_first + j) * 57.2958;
+
 					if (degree < 0.0)
 						degree += 180.f;
 
@@ -195,17 +170,18 @@ void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 					}
 				}
 			}
-			for (int k = 0; k < block_binsize; k++)
+			for (int k = 0; k < block_bincount; k++)
 				total += block[blockindex][k] * block[blockindex][k];
-			for (int k = 0; k < block_binsize; k++)
+
+			for (int k = 0; k < block_bincount; k++)
 				block[blockindex][k] = block[blockindex][k] / std::sqrt(total);
 		}
 	}
-	
+
 	struct Histogram output;
 	output.orgin = input;
 	output.data = block;
-	output.bincount = block_binsize;
+	output.bincount = block_bincount;
 	output.datacount = blocknum_total;
 
 	this->histogram.push_back(output);
@@ -509,6 +485,31 @@ Mat CVLAB::NORMALIZE(Mat input)
 		*/
 		return output;
 	}
+}
+double CVLAB::DISTANCE(Mat base, Mat compare, int type)
+{
+	double difference = 0;
+
+	if (type == 0)
+	{
+		HOG(base);
+		HOG(compare);
+
+		double** basedata = this->histogram[0].data;
+		double** comparedata = this->histogram[1].data;
+
+		for (int i = 0; i < this->histogram[0].datacount; i++)
+		{
+			for (int j = 0; j < this->histogram[0].bincount; j++)
+				difference += (basedata[i][j] - comparedata[i][j]) * (basedata[i][j] - comparedata[i][j]);
+		}
+		this->histogram.pop_back();
+		this->histogram.pop_back();
+		difference = sqrt(difference);
+	}
+
+
+	return difference;
 }
 
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData)
