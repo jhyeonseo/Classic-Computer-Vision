@@ -12,8 +12,8 @@ using namespace cv::dnn;
 struct Histogram
 {
 	Mat orgin;
-	double** data;
-	int datacount;
+	double* data;
+	int datasize;
 	int bincount;
 };
 
@@ -30,7 +30,8 @@ public:
 
 	// 이미지 분석을 위한 함수
 	void PixelValue(Mat img, int x, int y);
-	void HOG(Mat input, int binsize = 9, int cellsize = 64, int blocksize = 4); // Histograms of oriented gradients
+	//void HOG(Mat input, int binsize = 9, int cellsize = 64, int blocksize = 4); // Histograms of oriented gradients
+	void MYHOG(Mat input, int bincount = 9, int blocksize = 16, int interval = 8);
 
 	// 이미지 변환을 위한 함수
 	Mat GRAY(Mat img, int x, int y, int BLK = 0);

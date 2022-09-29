@@ -94,6 +94,7 @@ void CVLAB::PixelValue(Mat img, int x, int y)
 		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
 	}
 }
+/*
 void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 {
 	Mat grad = GRADIENT(input);
@@ -117,12 +118,12 @@ void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 	int blocknum_x = cellnum_x - blocksize + 1;
 	int blocknum_y = cellnum_y - blocksize + 1;
 	int blocknum_total = blocknum_x * blocknum_y;
-	int block_bincount = bincount * blocksize * blocksize;
+
 	double** block = new double* [blocknum_total];
 	for (int i = 0; i < blocknum_total; i++)
 	{
-		block[i] = new double[block_bincount];
-		for (int j = 0; j < block_bincount; j++)
+		block[i] = new double[bincount];
+		for (int j = 0; j < bincount; j++)
 			block[i][j] = 0;
 	}
 
@@ -166,14 +167,14 @@ void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 				{
 					for (int k = 0; k < bincount; k++)
 					{
-						block[blockindex][k + (i * blocksize + j) * bincount] += cell[cellindex + (i * cellnum_x + j)][k];
+						block[blockindex][k] += cell[cellindex + (i * cellnum_x + j)][k];    // Block을 구성하는 cell들의 histogram을 합친다
 					}
 				}
 			}
-			for (int k = 0; k < block_bincount; k++)
+			for (int k = 0; k < bincount; k++)
 				total += block[blockindex][k] * block[blockindex][k];
 
-			for (int k = 0; k < block_bincount; k++)
+			for (int k = 0; k < bincount; k++)
 				block[blockindex][k] = block[blockindex][k] / std::sqrt(total);
 		}
 	}
@@ -181,10 +182,70 @@ void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
 	struct Histogram output;
 	output.orgin = input;
 	output.data = block;
-	output.bincount = block_bincount;
+	output.bincount = bincount;
 	output.datacount = blocknum_total;
 
 	this->histogram.push_back(output);
+	
+}
+*/
+void CVLAB::MYHOG(Mat input, int bincount, int blocksize, int interval)
+{
+	Mat grad = GRADIENT(input);
+	Mat mag = MAGNITUDE(grad);
+	Mat phase = PHASE(grad);
+	int blocknum_x = (input.cols - interval) / interval;
+	int blocknum_y = (input.rows - interval) / interval;
+	double* histogram = new double[bincount * blocknum_x * blocknum_y];
+	for (int i = 0; i < bincount * blocknum_x * blocknum_y; i++)
+		histogram[i] = 0;
+
+	double bin_interval = 180.0 / bincount;
+	int blockindex = 0;
+
+	for (int y = 0; y <= input.rows-blocksize; y+=interval)
+	{
+		for (int x = 0; x <= input.cols-blocksize; x+=interval)
+		{
+			// x, y = first index in block
+			double total = 0;
+			for (int i = y; i < y + blocksize; i++)
+			{
+				for (int j = x; j < x + blocksize; j++)
+				{
+					if (i >= input.rows || j >= input.cols)
+						continue;
+					// i, j = pixel index
+					double degree = phase.at<double>(i, j) * 57.2958;
+					if (degree < 0.0)
+						degree += 180.f;
+					int binindex = degree / bin_interval;
+
+					if (binindex >= bincount)
+						binindex = bincount - 1;
+
+					histogram[blockindex * bincount + binindex] += mag.at<double>(i, j);
+				}
+			}
+			for (int i = blockindex * bincount; i < blockindex * bincount + bincount; i++)
+				total += histogram[i];
+
+			for (int i = blockindex * bincount; i < blockindex * bincount + bincount; i++)
+				histogram[i] = histogram[i] / total;                  // Normalize with L2
+			
+			blockindex++;
+		}
+	}
+
+	struct Histogram output;
+	output.orgin = input;
+	output.data = histogram;
+	output.bincount = bincount;
+	output.datasize = blocknum_x * blocknum_y * bincount;
+
+	this->histogram.push_back(output);
+	
+	return;
 }
 
 Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
@@ -488,28 +549,24 @@ Mat CVLAB::NORMALIZE(Mat input)
 }
 double CVLAB::DISTANCE(Mat base, Mat compare, int type)
 {
-	double difference = 0;
+	double distance = 0;
 
 	if (type == 0)
 	{
-		HOG(base);
-		HOG(compare);
+		MYHOG(base);
+		double* basedata = this->histogram[this->histogram.size() - 1].data;
+		MYHOG(compare);
+		double* comparedata = this->histogram[this->histogram.size() - 1].data;
 
-		double** basedata = this->histogram[0].data;
-		double** comparedata = this->histogram[1].data;
-
-		for (int i = 0; i < this->histogram[0].datacount; i++)
-		{
-			for (int j = 0; j < this->histogram[0].bincount; j++)
-				difference += (basedata[i][j] - comparedata[i][j]) * (basedata[i][j] - comparedata[i][j]);
-		}
+		for (int i = 0; i < this->histogram[0].datasize; i++)
+			distance += (basedata[i] - comparedata[i]) * (basedata[i] - comparedata[i]);
+		
 		this->histogram.pop_back();
 		this->histogram.pop_back();
-		difference = sqrt(difference);
+		distance = sqrt(distance);
 	}
 
-
-	return difference;
+	return distance;
 }
 
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData)
