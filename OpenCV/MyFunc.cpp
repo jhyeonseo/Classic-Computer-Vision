@@ -76,6 +76,44 @@ void CVLAB::Editor()
 	delete[]MouseData;
 
 }
+void CVLAB::Print(Mat input)
+{
+	if (input.type() == CV_64FC1)
+	{
+		for (int y = 0; y < input.rows; y++)
+		{
+			printf("[ ");
+			for (int x = 0; x < input.cols; x++)
+			{
+				printf("%f ", input.at<double>(y, x));
+			}
+			printf("]\n");
+		}
+	}
+	else if (input.type() == CV_64FC2)
+	{
+		for (int y = 0; y < input.rows; y++)
+		{
+			printf("[ ");
+			for (int x = 0; x < input.cols; x++)
+			{
+				printf("(%f, %f) ", input.at<Vec2d>(y, x)[0], input.at<Vec2d>(y, x)[1]);
+			}
+			printf("]\n");
+		}
+	}
+	else if (input.type() == CV_8UC1)
+	{
+		for (int y = 0; y < input.rows; y++)
+		{
+			for (int x = 0; x < input.cols; x++)
+			{
+				printf("%d ", input.at<int>(y, x));
+			}
+			printf("\n");
+		}
+	}
+}
 
 void CVLAB::PixelValue(Mat img, int x, int y)
 {
@@ -246,6 +284,54 @@ void CVLAB::MYHOG(Mat input, int bincount, int blocksize, int interval)
 	this->histogram.push_back(output);
 	
 	return;
+}
+Mat CVLAB::HARRIS(Mat input, Size window, double threshold)
+{
+	Mat output;
+	input.copyTo(output);
+	Mat grad = NORMALIZE(GRADIENT(input), 1);
+	double M[2][2];
+	double k = 0.05;
+	int window_w = window.width;
+	int window_h = window.height;
+
+	for (int y = 0; y < input.rows; y++)
+	{
+		for (int x = 0; x < input.cols; x++) // window interval = 1
+		{
+			// x,y = window center index
+			M[0][0] = M[0][1] = M[1][0] = M[1][1] = 0.0;
+			for (int i = y - window_h / 2; i <= y + window_h / 2; i++)
+			{
+				for (int j = x - window_w / 2; j <= x + window_w / 2; j++)
+				{
+					// i,j = windows의 픽셀의 index
+					if (i < 0 || i >= input.rows || j < 0 || j >= input.cols)
+						continue;
+
+					double ix = grad.at<Vec2d>(i, j)[0];
+					double iy = grad.at<Vec2d>(i, j)[1];
+
+					M[0][0] += ix * ix;
+					M[0][1] += ix * iy;
+					M[1][0] += ix * iy;
+					M[1][1] += iy * iy;
+				}
+			}
+			// 하나의 window에서 M 완성
+
+			double det = M[0][0] * M[1][1] - M[0][1] * M[1][0];  // determinant component
+			double tr = M[0][0] + M[1][1];  // trace component
+			double R = det - (k * tr * tr);
+
+			if (R > threshold)
+			{
+				output.at<uchar>(y, x) = 255;
+			}
+		}
+	}
+
+	return output;
 }
 
 Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
@@ -426,22 +512,26 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 Mat CVLAB::CONV(Mat input, Mat filter)
 {
 	Mat output = Mat::zeros(input.rows, input.cols, CV_64FC1);
+	int fcx = filter.cols / 2;
+	int fcy = filter.rows / 2;
 
 	for (int cy = 0; cy < input.rows; cy++)
 	{
 		for (int cx = 0; cx < input.cols; cx++)
 		{
 			double value = 0;
-			for (int i = 0; i < filter.rows; i++)
+			for (int i = -fcy; i <= fcy; i++)
 			{
-				for (int j = 0; j < filter.cols; j++)
+				for (int j = -fcx; j <= fcx; j++)
 				{
-					int x_first = cx - filter.cols / 2;
-					int y_first = cy - filter.rows / 2;
-					if (x_first + j < 0 || x_first + j >= input.cols || y_first + i < 0 || y_first + i >= input.rows)
+					// fcx, fcy = 필터의 중심
+					// i, j = input, filter의 중심으로부터 떨어진 칸수
+					if (cx + j < 0 || cx + j >= input.cols || cy + i < 0 || cy + i >= input.rows)
+						continue;
+					if (fcx + j < 0 || fcx + j >= filter.cols || fcy + i < 0 || fcy + i >= filter.rows)
 						continue;
 
-					value += input.at<uchar>(y_first + i, x_first + j) * filter.at<double>(i, j);
+					value += input.at<uchar>(cy + i, cx + j) * filter.at<double>(fcy + i, fcx + j);
 				}
 				output.at<double>(cy, cx) = value;
 			}
@@ -454,18 +544,18 @@ Mat CVLAB::GRADIENT(Mat input)
 {
 	Mat output(input.rows, input.cols, CV_64FC2);
 
-	double data_x[] = { -1,0,1,-1,0,1,-1,0,1 };
-	double data_y[] = { -1,-1,-1, 0,0,0, 1,1,1 };
-	Mat edge_x(3, 3, CV_64FC1, data_x);
-	Mat edge_y(3, 3, CV_64FC1, data_y);
+	double difference[] = { -1,0,1 };
+
+	Mat edge_x(1, 3, CV_64FC1, difference);
+	Mat edge_y(3, 1, CV_64FC1, difference);
 	Mat grad_x = CONV(input, edge_x);
 	Mat grad_y = CONV(input, edge_y);
 
-	for (int i = 0; i < input.rows; i++)
+	for (int y = 0; y < input.rows; y++)
 	{
-		for (int j = 0; j < input.cols; j++)
+		for (int x = 0; x < input.cols; x++)
 		{
-			output.at<Vec2d>(i, j) = Vec2d(grad_x.at<double>(i, j), grad_y.at<double>(i, j));
+			output.at<Vec2d>(y, x) = Vec2d(grad_x.at<double>(y, x) / 2, grad_y.at<double>(y, x) / 2);
 		}
 	}
 
@@ -475,14 +565,14 @@ Mat CVLAB::MAGNITUDE(Mat gradient)
 {
 	Mat result(gradient.rows, gradient.cols, CV_64FC1);
 
-	for (int i = 0; i < gradient.rows; i++)
+	for (int y = 0; y < gradient.rows; y++)
 	{
-		for (int j = 0; j < gradient.cols; j++)
+		for (int x = 0; x < gradient.cols; x++)
 		{
-			double fx = gradient.at<Vec2d>(i, j)[0];
-			double fy = gradient.at<Vec2d>(i, j)[1];
+			double fx = gradient.at<Vec2d>(y, x)[0];
+			double fy = gradient.at<Vec2d>(y, x)[1];
 
-			result.at<double>(i, j) = std::sqrt(fx * fx + fy * fy);
+			result.at<double>(y, x) = std::sqrt(fx * fx + fy * fy);
 		}
 	}
 
@@ -492,81 +582,153 @@ Mat CVLAB::PHASE(Mat gradient)
 {
 	Mat result(gradient.rows, gradient.cols, CV_64FC1);
 
-	for (int i = 0; i < gradient.rows; i++)
+	for (int y = 0; y < gradient.rows; y++)
 	{
-		for (int j = 0; j < gradient.cols; j++)
+		for (int x = 0; x < gradient.cols; x++)
 		{
-			double fx = gradient.at<Vec2d>(i, j)[0];
-			double fy = gradient.at<Vec2d>(i, j)[1];
+			double fx = gradient.at<Vec2d>(y, x)[0];
+			double fy = gradient.at<Vec2d>(y, x)[1];
 
-			result.at<double>(i, j) = atan2(fy, fx);
+			result.at<double>(y, x) = atan2(fy, fx);
 		}
 	}
 
 	return result;
 }
-Mat CVLAB::NORMALIZE(Mat input)
+Mat CVLAB::NORMALIZE(Mat input, double range)
 {
 	int type = input.type();
 	if (type == CV_64FC1)
 	{
-		Mat output(input.rows, input.cols, CV_8UC1);
-		double max = 0;
-		double min = 0;
-
-		for (int i = 0; i < input.cols; i++)
+		Mat output(input.rows, input.cols, type);
+		if (range != 0)
 		{
-			for (int j = 0; j < input.rows; j++)
+			double max = 0;
+			double min = 0;
+			double ratio = range;  // normalize factor
+			for (int y = 0; y < input.rows; y++)
 			{
-				double value = input.at<double>(j, i);
-
-				if (value > max)
-					max = value;
-				else if (value < min)
-					min = value;
+				for (int x = 0; x < input.cols; x++)
+				{
+					double value = input.at<double>(y, x);
+					if (value > max)
+						max = value;
+					else if (value < min)
+						min = value;
+				}
 			}
+			if (max != min)
+				ratio = range / (max - min);
+			
+			for (int y = 0; y < input.rows; y++)
+			{
+				for (int x = 0; x < input.cols; x++)
+				{
+					output.at<double>(y, x) = input.at<double>(y, x) * ratio;
+				}
+			}
+			return output;
 		}
-		double ratio = 255 / (max - min);
-		for (int i = 0; i < input.cols; i++)
+		else
 		{
-			for (int j = 0; j < input.rows; j++)
+			double value = 0;
+			for (int y = 0; y < input.rows; y++)
 			{
-				output.at<uchar>(j, i) = input.at<double>(j, i) * ratio;
+				for (int x = 0; x < input.cols; x++)
+				{
+					value += input.at<double>(y, x)* input.at<double>(y, x);
+				}
 			}
+			value = std::sqrt(value);
+			for (int y = 0; y < input.rows; y++)
+			{
+				for (int x = 0; x < input.cols; x++)
+				{
+					output.at<double>(y, x) = input.at<double>(y, x) / value;
+				}
+			}
+			return output;
 		}
-
-		return output;
 	}
-	else
+	else if(type == CV_64FC2)
 	{
-		Mat output(input.rows, input.cols, CV_8UC3);
-		/*
-		채널수 조정 
-		타입 조정
-		*/
+		Mat output(input.rows, input.cols, type);
+		if (range != 0)
+		{
+			double xmax = 0;
+			double xmin = 0;
+			double ymax = 0;
+			double ymin = 0;
+			double xratio = range;  // normalize factor
+			double yratio = range;
+			for (int y = 0; y < input.rows; y++)
+			{
+				for (int x = 0; x < input.cols; x++)
+				{
+					double xvalue = input.at<Vec2d>(y, x)[0];
+					if (xvalue > xmax)
+						xmax = xvalue;
+					else if (xvalue < xmin)
+						xmin = xvalue;
+
+					double yvalue = input.at<Vec2d>(y, x)[1];
+					if (yvalue > ymax)
+						ymax = yvalue;
+					else if (yvalue < ymin)
+						ymin = yvalue;
+				}
+			}
+			if (xmax != xmin)
+				xratio = range / (xmax - xmin);
+			if (ymax != ymin)
+				yratio = range / (ymax - ymin);
+
+			for (int y = 0; y < input.rows; y++)
+			{
+				for (int x = 0; x < input.cols; x++)
+				{
+					output.at<Vec2d>(y, x)[0] = input.at<Vec2d>(y, x)[0] * xratio;
+					output.at<Vec2d>(y, x)[1] = input.at<Vec2d>(y, x)[1] * yratio;
+				}
+			}
+			return output;
+		}
+		else
+		{
+			double value = 0;
+			for (int y = 0; y < input.rows; y++)
+			{
+				for (int x = 0; x < input.cols; x++)
+				{
+					value += input.at<Vec2d>(y, x)[0] * input.at<Vec2d>(y, x)[0] + input.at<Vec2d>(y, x)[1] * input.at<Vec2d>(y, x)[1];
+				}
+			}
+			value = std::sqrt(value);
+			for (int y = 0; y < input.rows; y++)
+			{
+				for (int x = 0; x < input.cols; x++)
+				{
+					output.at<Vec2d>(y, x)[0] = input.at<Vec2d>(y, x)[0] / value;
+					output.at<Vec2d>(y, x)[1] = input.at<Vec2d>(y, x)[1] / value;
+				}
+			}
+			return output;
+		}
 		return output;
 	}
 }
-double CVLAB::DISTANCE(Mat base, Mat compare, int type)
+double CVLAB::DISTANCE(Mat base, Mat compare)
 {
 	double distance = 0;
-
-	if (type == 0)
+	for (int y = 0; y < base.rows; y++)
 	{
-		MYHOG(base);
-		double* basedata = this->histogram[this->histogram.size() - 1].data;
-		MYHOG(compare);
-		double* comparedata = this->histogram[this->histogram.size() - 1].data;
-
-		for (int i = 0; i < this->histogram[0].datasize; i++)
-			distance += (basedata[i] - comparedata[i]) * (basedata[i] - comparedata[i]);
-		
-		this->histogram.pop_back();
-		this->histogram.pop_back();
-		distance = sqrt(distance);
+		for (int x = 0; x < base.cols; x++)
+		{
+			distance += (base.at<double>(y, x) - compare.at<double>(y, x)) * (base.at<double>(y, x) - compare.at<double>(y, x));
+		}
 	}
 
-	return distance;
+	return std::sqrt(distance);
 }
 
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData)
