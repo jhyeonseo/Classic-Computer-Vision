@@ -3,12 +3,17 @@
 CVLAB::CVLAB()
 {
 }
-void CVLAB::Insert(Mat img)
+void CVLAB::Insert(Mat input)
 {
-	std::vector<Mat> vec;
-	vec.push_back(img);
-	this->storage.push_back(vec);
+	FEATURE information;
+	information.image = input;
+	information.grad = GRADIENT(input);
+	information.magnitude = MAGNITUDE(information.grad);
+	information.phase = PHASE(information.grad);
+
+	this->storage.push_back(information);
 }
+/*
 void CVLAB::Editor()
 {
 	char command;
@@ -76,6 +81,7 @@ void CVLAB::Editor()
 	delete[]MouseData;
 
 }
+*/
 void CVLAB::Print(Mat input)
 {
 	if (input.type() == CV_64FC1)
@@ -132,164 +138,101 @@ void CVLAB::PixelValue(Mat img, int x, int y)
 		std::cout << "(" << x << ", " << y << ")" << ": " << Gray << std::endl;
 	}
 }
-/*
-void CVLAB::HOG(Mat input, int bincount, int cellsize, int blocksize)
+double* CVLAB::HOG(Mat input, Size block, int interval, int binsize)
 {
-	Mat grad = GRADIENT(input);
-	Mat mag = MAGNITUDE(grad);
-	Mat phase = PHASE(grad);
-
-	cellsize = std::sqrt(cellsize);
-	blocksize = std::sqrt(blocksize);
-	double interval = 180.0 / (double)bincount;
-
-	int cellnum_x = input.cols / cellsize;
-	int cellnum_y = input.rows / cellsize;
-	int cellnum_total = cellnum_x * cellnum_y;
-	double** cell = new double* [cellnum_total];
-	for (int i = 0; i < cellnum_total; i++)
-	{
-		cell[i] = new double[bincount];
-		for (int j = 0; j < bincount; j++)
-			cell[i][j] = 0;
-	}
-	int blocknum_x = cellnum_x - blocksize + 1;
-	int blocknum_y = cellnum_y - blocksize + 1;
-	int blocknum_total = blocknum_x * blocknum_y;
-
-	double** block = new double* [blocknum_total];
-	for (int i = 0; i < blocknum_total; i++)
-	{
-		block[i] = new double[bincount];
-		for (int j = 0; j < bincount; j++)
-			block[i][j] = 0;
-	}
-
-
-	for (int cellindex_y = 0; cellindex_y < cellnum_y; cellindex_y++)
-	{
-		int y_first = cellindex_y * cellsize;
-		for (int cellindex_x = 0; cellindex_x < cellnum_x; cellindex_x++)
+	int h = block.height;
+	int w = block.width;
+	double bininterval = 180 / binsize;
+	int yblock = (input.rows - h) / interval + 1;
+	int xblock = (input.cols - w) / interval + 1;
+	double* output = (double*)calloc(xblock * yblock * binsize, sizeof(double));
+	double* temp = (double*)calloc(binsize, sizeof(double));
+	Mat phase = PHASE(GRADIENT(input));
+	Mat mag = MAGNITUDE(GRADIENT(input));
+		for (int y = 0; y < input.rows - h; y++)
 		{
-			int x_first = cellindex_x * cellsize;
-			int cellindex = cellindex_y * cellnum_x + cellindex_x;
-
-			for (int i = 0; i < cellsize; i++)
+			for (int x = 0; x < input.cols - w; w++)
 			{
-				for (int j = 0; j < cellsize; j++)
+				// x, y = block의 첫번째 픽셀
+				for (int i = y; i <= h; i++)
 				{
-					double degree = phase.at<double>(y_first + i, x_first + j) * 57.2958;
-
-					if (degree < 0.0)
-						degree += 180.f;
-
-					int binindex = (int)round(degree / interval);
-					if (binindex >= bincount)
-						binindex = bincount - 1;
-					cell[cellindex][binindex] += mag.at<double>(y_first + i, x_first + j);
-				}
-			}
-		}
-	}
-
-	for (int blockindex_y = 0; blockindex_y < blocknum_y; blockindex_y++)
-	{
-		for (int blockindex_x = 0; blockindex_x < blocknum_x; blockindex_x++)
-		{
-			int blockindex = blockindex_y * blocknum_x + blockindex_x;
-			int cellindex = blockindex_y * cellnum_x + blockindex_x;
-			double total = 0;
-			for (int i = 0; i < blocksize; i++)
-			{
-				for (int j = 0; j < blocksize; j++)
-				{
-					for (int k = 0; k < bincount; k++)
+					for (int j = x; j <= w; j++)
 					{
-						block[blockindex][k] += cell[cellindex + (i * cellnum_x + j)][k];    // Block을 구성하는 cell들의 histogram을 합친다
+						int binindex;
+						double degree = phase.at<double>(y + i, x + j) * 57.2958;
+						if (degree < 0.0)
+							degree += 180;
+						if (degree >= 180.0)
+							binindex = degree / bininterval - 1;
+						else
+							binindex = degree / bininterval;
+
+						temp[binindex] += mag.at<double>(y + i, x + j);
 					}
 				}
-			}
-			for (int k = 0; k < bincount; k++)
-				total += block[blockindex][k] * block[blockindex][k];
-
-			for (int k = 0; k < bincount; k++)
-				block[blockindex][k] = block[blockindex][k] / std::sqrt(total);
-		}
-	}
-
-	struct Histogram output;
-	output.orgin = input;
-	output.data = block;
-	output.bincount = bincount;
-	output.datacount = blocknum_total;
-
-	this->histogram.push_back(output);
-	
-}
-*/
-void CVLAB::MYHOG(Mat input, int bincount, int blocksize, int interval)
-{
-	Mat grad = GRADIENT(input);
-	Mat mag = MAGNITUDE(grad);
-	Mat phase = PHASE(grad);
-	int blocknum_x = (input.cols - interval) / interval;
-	int blocknum_y = (input.rows - interval) / interval;
-	double* histogram = new double[bincount * blocknum_x * blocknum_y];
-	for (int i = 0; i < bincount * blocknum_x * blocknum_y; i++)
-		histogram[i] = 0;
-
-	double bin_interval = 180.0 / bincount;
-	int blockindex = 0;
-
-	for (int y = 0; y <= input.rows-blocksize; y+=interval)
-	{
-		for (int x = 0; x <= input.cols-blocksize; x+=interval)
-		{
-			// x, y = first index in block
-			double total = 0;
-			for (int i = y; i < y + blocksize; i++)
-			{
-				for (int j = x; j < x + blocksize; j++)
+				NORMALIZE(temp, binsize);
+				for (int i = 0; i < binsize; i++)
 				{
-					if (i >= input.rows || j >= input.cols)
-						continue;
-					// i, j = pixel index
-					double degree = phase.at<double>(i, j) * 57.2958;
-					if (degree < 0.0)
-						degree += 180.f;
-					int binindex = degree / bin_interval;
-
-					if (binindex >= bincount)
-						binindex = bincount - 1;
-
-					histogram[blockindex * bincount + binindex] += mag.at<double>(i, j);
+					output[y * xblock + x + i] = temp[i];
+					temp[i] = 0;
 				}
 			}
-			for (int i = blockindex * bincount; i < blockindex * bincount + bincount; i++)
-				total += histogram[i];
+		}
+		return output;
+}
+double* CVLAB::HOG(Mat input, Size block, std::vector<Point> point, int binsize)
+{
+	int h = block.height;
+	int w = block.width;
+	double bininterval = 180 / binsize;
+	Mat phase = PHASE(GRADIENT(input));
+	Mat mag = MAGNITUDE(GRADIENT(input));
+	double* output = (double*)calloc(point.size() * binsize, sizeof(double));
+	double* temp = (double*)calloc(binsize, sizeof(double));
+	for (int p = 0; p < point.size(); p++)
+	{
+		int cx = point[p].x;
+		int cy = point[p].y;
+		for (int i = cy - h/2; i <= cy + h/2; i++)
+		{
+			for (int j = cx - w/2; j <= cx + w/2; j++)
+			{
+				// p = 코너의 순번
+				// cx1, cy2 = 코너의 중심 좌표
+				// i, j = 코너 중심 block안의 픽셀의 좌표
+				if (j < 0 || j >= input.cols || i < 0 || i >= input.rows)
+					continue;
+				int binindex;
+				double degree = phase.at<double>(i, j) * 57.2958;
+				if (degree < 0.0)
+					degree += 180;
+				if (degree >= 180.0)
+					binindex = degree / bininterval - 1;
+				else
+					binindex = degree / bininterval;
 
-			for (int i = blockindex * bincount; i < blockindex * bincount + bincount; i++)
-				histogram[i] = histogram[i] / total;                  // Normalize with L2
-			
-			blockindex++;
+				temp[binindex] += mag.at<double>(i, j);
+			}
+		}
+		NORMALIZE(temp, binsize);
+		for (int i = 0; i < binsize; i++)
+		{
+			output[p * binsize + i] = temp[i];
+			temp[i] = 0;
 		}
 	}
-
-	struct Histogram output;
-	output.orgin = input;
-	output.data = histogram;
-	output.bincount = bincount;
-	output.datasize = blocknum_x * blocknum_y * bincount;
-
-	this->histogram.push_back(output);
-	
-	return;
+	free(temp);
+	return output;
 }
-Mat CVLAB::HARRIS(Mat input, Size window, double threshold)
+std::vector<Point> CVLAB::HARRIS(Mat input, Size window, double threshold)
 {
-	Mat output;
-	input.copyTo(output);
-	Mat grad = NORMALIZE(GRADIENT(input), 1);
+	Mat grad;
+	if (input.channels() == 3)
+		grad = NORMALIZE(GRADIENT(GRAY(input)), 1);
+	else
+		grad = NORMALIZE(GRADIENT(input), 1);
+
+	std::vector<Point> corner;
 	double M[2][2];
 	double k = 0.05;
 	int window_w = window.width;
@@ -325,30 +268,93 @@ Mat CVLAB::HARRIS(Mat input, Size window, double threshold)
 			double R = det - (k * tr * tr);
 
 			if (R > threshold)
-			{
-				output.at<uchar>(y, x) = 255;
-			}
+				corner.push_back(Point(x, y));	
 		}
 	}
 
+	return corner;
+}
+Mat CVLAB::LINKCORNER(Mat input1, Mat input2)
+{
+	std::vector<Point> corner1 = HARRIS(input1, Size(3, 3));
+	std::vector<Point> corner2 = HARRIS(input2, Size(3, 3));
+	double* histogram1 = (double*)calloc(corner1.size() * 9, sizeof(double));
+	double* histogram2 = (double*)calloc(corner2.size() * 9, sizeof(double));
+	double* similarity = (double*)calloc(corner1.size(), sizeof(double));
+	int* similarity_index = (int*)calloc(corner1.size(), sizeof(int));
+	double THRESHOLD = 0.125;
+	int BLK = 15;
+	int binsize = 9;
+	Mat output = COMBINE(input1, input2);
+	histogram1 = HOG(input1, Size(BLK, BLK), corner1, binsize);
+	histogram2 = HOG(input2, Size(BLK, BLK), corner2, binsize);
+	for (int c1 = 0; c1 < corner1.size(); c1++)
+	{
+		int cx1 = corner1[c1].x;
+		int cy1 = corner1[c1].y;
+		if (cx1<BLK /2 || cx1>input1.cols - BLK /2 || cy1<BLK /2 || cy1>input1.rows - BLK /2)
+			continue;
+		for (int c2 = 0; c2 < corner2.size(); c2++)
+		{
+			// c1, c2 = 코너의 순서
+			int cx2 = corner2[c2].x;
+			int cy2 = corner2[c2].y;
+			if (cx2<BLK /2 || cx2>input2.cols - BLK /2 || cy2<BLK /2 || cy2>input2.rows - BLK /2)
+				continue;
+			double value = 0;
+			for (int i = 0; i < binsize; i++)
+				value += (histogram1[c1 * binsize + i] - histogram2[c2 * binsize + i]) * (histogram1[c1 * binsize + i] - histogram2[c2 * binsize + i]);
+			if (value > 0.0)
+				value = 1 / std::sqrt(value);
+			else
+				value = INT_MAX;
+			if (value > similarity[c1])
+			{
+				similarity[c1] = value;
+				similarity_index[c1] = c2;
+			}
+		}
+	}
+	NORMALIZE(similarity, corner1.size());
+	for (int i = 0; i < corner1.size(); i++)
+		if (similarity[i] > THRESHOLD)
+			line(output, corner1[i], corner2[similarity_index[i]] + Point(input1.rows, 0), Scalar(255, 0, 0), 2, 9, 0);
 	return output;
 }
 
-Mat CVLAB::GRAY(Mat img, int x, int y, int BLK)
+Mat CVLAB::GRAY(Mat img)
+{
+	Mat gray(img.rows, img.cols, CV_8UC1);
+	for (int y = 0; y < gray.rows; y++)
+	{
+		for (int x = 0; x < gray.cols; x++)
+		{
+			int value = (img.at<Vec3b>(y, x)[0] + img.at<Vec3b>(y, x)[1] + img.at<Vec3b>(y, x)[2]) / 3;
+			gray.at<uchar>(y, x) = value;
+		}
+	}
+
+	return gray;
+}
+Mat CVLAB::GRAY(Mat img, Point center, Size size)
 {
 	Mat gray = img.clone();
+	int cx = center.x;
+	int cy = center.y;
+	int height = size.height;
+	int width = size.width;
 
-	for (int i = x - BLK; i < x + BLK; i++)
+	for (int y = cy - height / 2; y <= cy + height / 2; y++)
 	{
-		if (i<0 || i>img.cols)
+		if (y<0 || y>=gray.rows)
 			continue;
-		for (int j = y - BLK; j < y + BLK; j++)
+		for (int x = cx - width / 2; x < cx + width / 2; x++)
 		{
-			if (j<0 || i>img.rows)
+			if (x < 0 || x >= gray.cols)
 				continue;
 
-			double value = (img.at<Vec3b>(j, i)[2] + img.at<Vec3b>(j, i)[0] + img.at<Vec3b>(j, i)[1]) / 3;
-			gray.at<Vec3b>(j, i)[0] = gray.at<Vec3b>(j, i)[1] = gray.at<Vec3b>(j, i)[2] = round(value);
+			int value = (img.at<Vec3b>(y, x)[0] + img.at<Vec3b>(y, x)[1] + img.at<Vec3b>(y, x)[2]) / 3;
+			gray.at<Vec3b>(y, x)[0] = gray.at<Vec3b>(y, x)[1] = gray.at<Vec3b>(y, x)[2] = value;
 		}
 	}
 
@@ -508,6 +514,33 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 
 	return rotate;
 }
+Mat CVLAB::COMBINE(Mat img1, Mat img2)
+{
+	Mat output(img1.rows, img1.cols * 2, img1.type());
+	if (img1.type() == CV_8UC3)
+	{
+		for (int y = 0; y < img1.cols; y++)
+		{
+			for (int x = 0; x < img1.rows; x++)
+			{
+				output.at<Vec3b>(y, x) = img1.at<Vec3b>(y, x);
+				output.at<Vec3b>(y, x + img1.cols) = img2.at<Vec3b>(y, x);
+			}
+		}
+	}
+	else if (img1.type() == CV_8UC1)
+	{
+		for (int y = 0; y < img1.cols; y++)
+		{
+			for (int x = 0; x < img1.rows; x++)
+			{
+				output.at<uchar>(y, x) = img1.at<uchar>(y, x);
+				output.at<uchar>(y, x + img1.cols) = img2.at<uchar>(y, x);
+			}
+		}
+	}
+	return output;
+}
 
 Mat CVLAB::CONV(Mat input, Mat filter)
 {
@@ -542,15 +575,14 @@ Mat CVLAB::CONV(Mat input, Mat filter)
 }
 Mat CVLAB::GRADIENT(Mat input)
 {
+	if (input.channels() == 3)
+		input = GRAY(input);
 	Mat output(input.rows, input.cols, CV_64FC2);
-
 	double difference[] = { -1,0,1 };
-
 	Mat edge_x(1, 3, CV_64FC1, difference);
 	Mat edge_y(3, 1, CV_64FC1, difference);
 	Mat grad_x = CONV(input, edge_x);
 	Mat grad_y = CONV(input, edge_y);
-
 	for (int y = 0; y < input.rows; y++)
 	{
 		for (int x = 0; x < input.cols; x++)
@@ -717,16 +749,44 @@ Mat CVLAB::NORMALIZE(Mat input, double range)
 		return output;
 	}
 }
-double CVLAB::DISTANCE(Mat base, Mat compare)
+void CVLAB::NORMALIZE(double* input, double inputsize, double range)
+{
+	if (range != 0)
+	{
+		double max = 0;
+		double min = 0;
+		double ratio = range;  // normalize factor
+		for (int i = 0; i < inputsize; i++)
+		{
+			if (input[i] > max)
+				max = input[i];
+			else if (input[i] < min)
+				min = input[i];
+		}
+		if (max != min)
+			ratio = range / (max - min);
+		else
+			return;
+		for (int i = 0; i < inputsize; i++)
+			input[i] = input[i] * ratio;
+		
+	}
+	else
+	{
+		double value = 0;
+		for (int i = 0; i < inputsize; i++)
+			value += input[i] * input[i];
+		value = std::sqrt(value);
+		for (int i = 0; i < inputsize; i++)
+			input[i] = input[i] / value;
+			
+	}
+}
+double CVLAB::DISTANCE(double* input1, double* input2, int size)
 {
 	double distance = 0;
-	for (int y = 0; y < base.rows; y++)
-	{
-		for (int x = 0; x < base.cols; x++)
-		{
-			distance += (base.at<double>(y, x) - compare.at<double>(y, x)) * (base.at<double>(y, x) - compare.at<double>(y, x));
-		}
-	}
+	for (int i = 0; i < size; i++)
+		distance += (input1[i] - input2[i]) * (input1[i] - input2[i]);
 
 	return std::sqrt(distance);
 }
