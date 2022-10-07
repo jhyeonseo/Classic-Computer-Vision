@@ -121,6 +121,86 @@ void CVLAB::Print(Mat input)
 	}
 }
 
+// Application을 위한 함수
+Mat CVLAB::EDGE(Mat img)
+{
+	Mat output;
+	NORMALIZE(MAGNITUDE(GRADIENT(img)),255).convertTo(output, CV_8UC1);
+	return output;
+}
+Mat CVLAB::CORNER(Mat img, int option)
+{
+	Mat copy;
+	img.copyTo(copy);
+	if (option == 0)
+	{
+		int width = img.cols;
+		int height = img.rows;
+
+		std::vector<Point> corner = HARRIS(img, Size(3, 3));
+		for (int i = 0; i < corner.size(); i++)
+			circle(copy, corner[i], 3, Scalar(0, 255, 255), 2, 8, 0);
+	}
+
+	return copy;
+}
+Mat CVLAB::LINKCORNER(Mat img1, Mat img2)
+{
+	std::vector<Point> corner1 = HARRIS(img1, Size(3, 3));
+	std::vector<Point> corner2 = HARRIS(img2, Size(3, 3));
+	double* histogram1 = (double*)calloc(corner1.size() * 9, sizeof(double));
+	double* histogram2 = (double*)calloc(corner2.size() * 9, sizeof(double));
+	double* similarity = (double*)calloc(corner1.size(), sizeof(double));
+	int* similarity_index = (int*)calloc(corner1.size(), sizeof(int));
+	double THRESHOLD = 0.125;
+	int BLK = 15;
+	int binsize = 9;
+
+	if ((img1.rows != img2.rows) || (img1.cols != img2.cols))
+		img2 = RESIZE(img2, Size(img1.cols, img1.rows));
+	Mat output = COMBINE(img1, img2);
+	histogram1 = HOG(img1, Size(BLK, BLK), corner1, binsize);
+	histogram2 = HOG(img2, Size(BLK, BLK), corner2, binsize);
+	for (int c1 = 0; c1 < corner1.size(); c1++)
+	{
+		int cx1 = corner1[c1].x;
+		int cy1 = corner1[c1].y;
+		if (cx1<BLK / 2 || cx1>img1.cols - BLK / 2 || cy1<BLK / 2 || cy1>img1.rows - BLK / 2)
+			continue;
+		for (int c2 = 0; c2 < corner2.size(); c2++)
+		{
+			// c1, c2 = 코너의 순서
+			int cx2 = corner2[c2].x;
+			int cy2 = corner2[c2].y;
+			if (cx2<BLK / 2 || cx2>img2.cols - BLK / 2 || cy2<BLK / 2 || cy2>img2.rows - BLK / 2)
+				continue;
+			double value = 0;
+			for (int i = 0; i < binsize; i++)
+				value += (histogram1[c1 * binsize + i] - histogram2[c2 * binsize + i]) * (histogram1[c1 * binsize + i] - histogram2[c2 * binsize + i]);
+			if (value > 0.0)
+				value = 1 / std::sqrt(value);
+			else
+				value = INT_MAX;
+			if (value > similarity[c1])
+			{
+				similarity[c1] = value;
+				similarity_index[c1] = c2;
+			}
+		}
+	}
+	NORMALIZE(similarity, corner1.size());
+	for (int i = 0; i < corner1.size(); i++)
+		if (similarity[i] > THRESHOLD)
+			line(output, corner1[i], corner2[similarity_index[i]] + Point(img1.rows, 0), Scalar(255, 0, 0), 2, 9, 0);
+
+	free(histogram1);
+	free(histogram2);
+	free(similarity);
+	free(similarity_index);
+	return output;
+}
+
+// 이미지 feature 추출을 위한 함수
 void CVLAB::PixelValue(Mat img, int x, int y)
 {
 	int channel = img.channels();
@@ -226,11 +306,7 @@ double* CVLAB::HOG(Mat input, Size block, std::vector<Point> point, int binsize)
 }
 std::vector<Point> CVLAB::HARRIS(Mat input, Size window, double threshold)
 {
-	Mat grad;
-	if (input.channels() == 3)
-		grad = NORMALIZE(GRADIENT(GRAY(input)), 1);
-	else
-		grad = NORMALIZE(GRADIENT(input), 1);
+	Mat grad = NORMALIZE(GRADIENT(input), 1);
 
 	std::vector<Point> corner;
 	double M[2][2];
@@ -274,54 +350,8 @@ std::vector<Point> CVLAB::HARRIS(Mat input, Size window, double threshold)
 
 	return corner;
 }
-Mat CVLAB::LINKCORNER(Mat input1, Mat input2)
-{
-	std::vector<Point> corner1 = HARRIS(input1, Size(3, 3));
-	std::vector<Point> corner2 = HARRIS(input2, Size(3, 3));
-	double* histogram1 = (double*)calloc(corner1.size() * 9, sizeof(double));
-	double* histogram2 = (double*)calloc(corner2.size() * 9, sizeof(double));
-	double* similarity = (double*)calloc(corner1.size(), sizeof(double));
-	int* similarity_index = (int*)calloc(corner1.size(), sizeof(int));
-	double THRESHOLD = 0.125;
-	int BLK = 15;
-	int binsize = 9;
-	Mat output = COMBINE(input1, input2);
-	histogram1 = HOG(input1, Size(BLK, BLK), corner1, binsize);
-	histogram2 = HOG(input2, Size(BLK, BLK), corner2, binsize);
-	for (int c1 = 0; c1 < corner1.size(); c1++)
-	{
-		int cx1 = corner1[c1].x;
-		int cy1 = corner1[c1].y;
-		if (cx1<BLK /2 || cx1>input1.cols - BLK /2 || cy1<BLK /2 || cy1>input1.rows - BLK /2)
-			continue;
-		for (int c2 = 0; c2 < corner2.size(); c2++)
-		{
-			// c1, c2 = 코너의 순서
-			int cx2 = corner2[c2].x;
-			int cy2 = corner2[c2].y;
-			if (cx2<BLK /2 || cx2>input2.cols - BLK /2 || cy2<BLK /2 || cy2>input2.rows - BLK /2)
-				continue;
-			double value = 0;
-			for (int i = 0; i < binsize; i++)
-				value += (histogram1[c1 * binsize + i] - histogram2[c2 * binsize + i]) * (histogram1[c1 * binsize + i] - histogram2[c2 * binsize + i]);
-			if (value > 0.0)
-				value = 1 / std::sqrt(value);
-			else
-				value = INT_MAX;
-			if (value > similarity[c1])
-			{
-				similarity[c1] = value;
-				similarity_index[c1] = c2;
-			}
-		}
-	}
-	NORMALIZE(similarity, corner1.size());
-	for (int i = 0; i < corner1.size(); i++)
-		if (similarity[i] > THRESHOLD)
-			line(output, corner1[i], corner2[similarity_index[i]] + Point(input1.rows, 0), Scalar(255, 0, 0), 2, 9, 0);
-	return output;
-}
 
+// 이미지 변환을 위한 함수
 Mat CVLAB::GRAY(Mat img)
 {
 	Mat gray(img.rows, img.cols, CV_8UC1);
@@ -360,11 +390,85 @@ Mat CVLAB::GRAY(Mat img, Point center, Size size)
 
 	return gray;
 }
-Mat CVLAB::RESIZE(Mat img, double scalor, int option)
+Mat CVLAB::RESIZE(Mat img, Size size, int option)
 {
-	scalor = sqrt(scalor);
-	int width = round(img.cols * scalor);
-	int height = round(img.rows * scalor);
+	int width = round(size.width);
+	int height = round(size.height);
+	double ratio_x = (double)img.cols / (double)width;
+	double ratio_y = (double)img.rows / (double)height;
+
+	Mat resize(height, width, CV_8UC3);
+
+	for (int x = 0; x < resize.cols; x++)
+	{
+		for (int y = 0; y < resize.rows; y++)
+		{
+			int x_orgin = std::floor(x * ratio_x);
+			int y_orgin = std::floor(y * ratio_y);
+
+			int x_left = floor(x_orgin);
+			int x_right = x_left + 1;
+			int y_bot = floor(y_orgin);
+			int y_top = y_bot + 1;
+
+			if (x_right >= img.cols || y_top >= img.rows || x_left < 0 || y_bot < 0)
+				continue;
+
+			Vec3d value = 0;
+			if (option == 0)
+			{
+				Vec3d value1, value2, value3, value4 = 0;
+				value1 += (Vec3d)img.at<Vec3b>(y_bot, x_left) * (1 - (x_orgin - x_left));
+				value1 += (Vec3d)img.at<Vec3b>(y_bot, x_right) * (x_orgin - x_left);
+				value1 = value1 * (1 - (y_orgin - y_bot));
+				value2 += (Vec3d)img.at<Vec3b>(y_top, x_left) * (1 - (x_orgin - x_left));
+				value2 += (Vec3d)img.at<Vec3b>(y_top, x_right) * (x_orgin - x_left);
+				value2 = value2 * (y_orgin - y_bot);
+				value3 += (Vec3d)img.at<Vec3b>(y_bot, x_left) * (1 - (y_orgin - y_bot));
+				value3 += (Vec3d)img.at<Vec3b>(y_top, x_left) * (y_orgin - y_bot);
+				value3 = value3 * (1 - (x_orgin - x_left));
+				value4 += (Vec3d)img.at<Vec3b>(y_bot, x_right) * (1 - (y_orgin - y_bot));
+				value4 += (Vec3d)img.at<Vec3b>(y_top, x_right) * (y_orgin - y_bot);
+				value4 = value4 * (x_orgin - x_left);
+
+				value = (value1 + value2 + value3 + value4) / 2;
+			}
+			else if (option == 1)
+			{
+				double normalize = 0;
+				value += (Vec3d)img.at<Vec3b>(y_bot, x_left) * std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_bot, 2));
+				value += (Vec3d)img.at<Vec3b>(y_bot, x_right) * std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_bot, 2));
+				value += (Vec3d)img.at<Vec3b>(y_top, x_left) * std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_top, 2));
+				value += (Vec3d)img.at<Vec3b>(y_top, x_right) * std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_top, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_bot, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_bot, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_left, 2) + std::pow(y_orgin - y_top, 2));
+				normalize += std::sqrt(std::pow(x_orgin - x_right, 2) + std::pow(y_orgin - y_top, 2));
+				value = value / normalize;
+			}
+			else if (option == 2)
+			{
+				int x_neighbor = round(x_orgin);
+				int y_neighbor = round(y_orgin);
+
+				value = (Vec3d)img.at<Vec3b>(y_neighbor, x_neighbor);
+			}
+			else if (option == 3)
+			{
+				value = (Vec3d)img.at<Vec3b>(y_bot, x_left);
+			}
+
+			resize.at<Vec3b>(y, x) = (Vec3b)value;
+		}
+	}
+
+	return resize;
+}
+Mat CVLAB::RESIZE(Mat img, double scalar, int option)
+{
+	scalar = sqrt(scalar);
+	int width = round(img.cols * scalar);
+	int height = round(img.rows * scalar);
 	double ratio_x = (double)img.cols / (double)width;
 	double ratio_y = (double)img.rows / (double)height;
 
@@ -516,12 +620,15 @@ Mat CVLAB::ROTATE(Mat img, double angle, int option)
 }
 Mat CVLAB::COMBINE(Mat img1, Mat img2)
 {
+	if ((img1.rows != img2.rows) || (img1.cols != img2.cols))
+		img2 = RESIZE(img1, Size(img1.cols, img1.rows));
+
 	Mat output(img1.rows, img1.cols * 2, img1.type());
 	if (img1.type() == CV_8UC3)
 	{
-		for (int y = 0; y < img1.cols; y++)
+		for (int y = 0; y < img1.rows; y++)
 		{
-			for (int x = 0; x < img1.rows; x++)
+			for (int x = 0; x < img1.cols; x++)
 			{
 				output.at<Vec3b>(y, x) = img1.at<Vec3b>(y, x);
 				output.at<Vec3b>(y, x + img1.cols) = img2.at<Vec3b>(y, x);
@@ -530,9 +637,9 @@ Mat CVLAB::COMBINE(Mat img1, Mat img2)
 	}
 	else if (img1.type() == CV_8UC1)
 	{
-		for (int y = 0; y < img1.cols; y++)
+		for (int y = 0; y < img1.rows; y++)
 		{
-			for (int x = 0; x < img1.rows; x++)
+			for (int x = 0; x < img1.cols; x++)
 			{
 				output.at<uchar>(y, x) = img1.at<uchar>(y, x);
 				output.at<uchar>(y, x + img1.cols) = img2.at<uchar>(y, x);
@@ -542,6 +649,7 @@ Mat CVLAB::COMBINE(Mat img1, Mat img2)
 	return output;
 }
 
+// 수학적 처리를 위한 함수
 Mat CVLAB::CONV(Mat input, Mat filter)
 {
 	Mat output = Mat::zeros(input.rows, input.cols, CV_64FC1);
