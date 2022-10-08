@@ -3,25 +3,21 @@
 #include <stdlib.h>
 #include "MyFunc.h"
 
-
 CVLAB mylab;
 IMAGE image;
 VIDEO video;
 int main()
 {
-	VideoCapture capture(video.surfing);
-	Mat frame;
-
+	Mat v1;
+	Mat v2;
 	while (1)
 	{
-		capture >> frame;
-		if (frame.empty())
-		{
-			waitKey();
+		video.frog >> v1;
+		video.people >> v2;
+		if (v1.empty()||v2.empty())
 			break;
-		}
-		imshow("ship", mylab.CORNER(frame));
-		waitKey(1);
+		imshow("frog", mylab.MYORB(v1, v2, Size(640, 640)));
+		waitKey(10);
 	}
 
 	return 0;

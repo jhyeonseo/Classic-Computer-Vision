@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "MyFunc.h"
 
 CVLAB::CVLAB()
@@ -198,6 +199,93 @@ Mat CVLAB::LINKCORNER(Mat img1, Mat img2)
 	free(similarity);
 	free(similarity_index);
 	return output;
+}
+Mat CVLAB::MYORB(Mat img1, Mat img2, Size window)
+{
+	// ORB settings
+	int ORB_MAX_KPTS = 128;
+	float ORB_SCALE_FACTOR = 1.2;
+	int ORB_PYRAMID_LEVELS = 4;
+	float ORB_EDGE_THRESHOLD = 31.0;
+	int ORB_FIRST_PYRAMID_LEVEL = 0;
+	int ORB_WTA_K = 2;
+	int ORB_PATCH_SIZE = 31;
+	// Some image matching options
+	float MIN_H_ERROR = 2.50f; // Maximum error in pixels to accept an inlier
+	float DRATIO = 0.80f;
+
+	// Input image (color)
+	Mat img1_rgb_orb = RESIZE(img1, window);
+	Mat img2_rgb_orb = RESIZE(img2, window);
+	// Input image (gray)
+	Mat img1_gray, img2_gray;
+	img1_gray = GRAY(img1_rgb_orb);
+	img2_gray = GRAY(img2_rgb_orb);
+	// Input image to float
+	Mat img1_32, img2_32;
+	img1_gray.convertTo(img1_32, CV_32F, 1.0 / 255.0, 0);
+	img2_gray.convertTo(img2_32, CV_32F, 1.0 / 255.0, 0);
+	// Output image (color)
+	Mat img_com_orb = Mat(Size(img1_gray.cols * 2, img1_gray.rows), CV_8UC3);
+
+	// Time create the L2 and L1 matchers
+	double t1 = 0.0, t2 = 0.0;
+	double torb = 0.0;
+
+	// Corner Points
+	std::vector<KeyPoint> kpts1_orb, kpts2_orb;
+	// Descriptors
+	Mat desc1_orb, desc2_orb;
+	// Matches btw Descriptors
+	std::vector<Point2f> matches_orb, inliers_orb;
+	std::vector<std::vector<DMatch>> dmatches_orb;
+
+	Ptr<DescriptorMatcher> matcher_l2 = DescriptorMatcher::create("BruteForce");
+	Ptr<DescriptorMatcher> matcher_l1 = DescriptorMatcher::create("BruteForce-Hamming");
+
+	// ORB Features
+	Ptr<ORB> orb = ORB::create(ORB_MAX_KPTS, ORB_SCALE_FACTOR, ORB_PYRAMID_LEVELS,
+		ORB_EDGE_THRESHOLD, ORB_FIRST_PYRAMID_LEVEL, ORB_WTA_K, ORB::HARRIS_SCORE,
+		ORB_PATCH_SIZE);
+
+	t1 = getTickCount();
+	// Detect Corner and Calculate Descriptor
+	orb->detectAndCompute(img1_gray, noArray(), kpts1_orb, desc1_orb, false);
+	orb->detectAndCompute(img2_gray, noArray(), kpts2_orb, desc2_orb, false);
+
+	// Find best matches using descriptor
+	matcher_l1->knnMatch(desc1_orb, desc2_orb, dmatches_orb, 2);
+	matches2points_nndr(kpts1_orb, kpts2_orb, dmatches_orb, matches_orb, DRATIO);
+	compute_inliers_ransac(matches_orb, inliers_orb, MIN_H_ERROR, false);
+	t2 = cv::getTickCount();
+
+	// Draw corners and matches in image and show
+	draw_keypoints(img1_rgb_orb, kpts1_orb);
+	draw_keypoints(img2_rgb_orb, kpts2_orb);
+	draw_inliers(img1_rgb_orb, img2_rgb_orb, img_com_orb, inliers_orb, 0);
+
+	// Show measures
+	int nmatches_orb = 0, ninliers_orb = 0, noutliers_orb = 0;
+	int nkpts1_orb = 0, nkpts2_orb = 0;
+	float ratio_orb = 0.0;
+	nkpts1_orb = kpts1_orb.size();
+	nkpts2_orb = kpts2_orb.size();
+	nmatches_orb = matches_orb.size() / 2;
+	ninliers_orb = inliers_orb.size() / 2;
+	noutliers_orb = nmatches_orb - ninliers_orb;
+	ratio_orb = 100.0 * (float)(ninliers_orb) / (float)(nmatches_orb);
+	torb = 1000.0 * (t2 - t1) / cv::getTickFrequency();
+	std::cout << "ORB Results" << std::endl;
+	std::cout << "**************************************" << std::endl;
+	std::cout << "Number of Keypoints Image 1: " << nkpts1_orb << std::endl;
+	std::cout << "Number of Keypoints Image 2: " << nkpts2_orb << std::endl;
+	std::cout << "Number of Matches: " << nmatches_orb << std::endl;
+	std::cout << "Number of Inliers: " << ninliers_orb << std::endl;
+	std::cout << "Number of Outliers: " << noutliers_orb << std::endl;
+	std::cout << "Inliers Ratio: " << ratio_orb << std::endl;
+	std::cout << "ORB Features Extraction Time (ms): " << torb << std::endl; std::cout << std::endl;
+
+	return img_com_orb;
 }
 
 // 이미지 feature 추출을 위한 함수

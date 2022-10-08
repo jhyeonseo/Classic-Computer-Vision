@@ -1,5 +1,4 @@
 #pragma once
-#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <fstream>
@@ -9,28 +8,29 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include "utils.h"
 
 using namespace cv;
 using namespace cv::dnn;
 
 struct IMAGE
 {
-	std::string ref = "../data/pictures/original/ref.bmp";
-	std::string tar = "../data/pictures/original/tar.bmp";
-	std::string base = "../data/pictures/original/lecture3.bmp";
-	std::string compare = "../data/pictures/original/compare.bmp";
-	std::string compare2 = "../data/pictures/original/compare2.bmp";
-	std::string cat = "../data/pictures/original/cat.jpg";
-	std::string dog = "../data/pictures/original/dog.jpg";
-	std::string text = "../data/pictures/original/text.jpg";
+	Mat ref = imread("../data/pictures/original/ref.bmp", 1);
+	Mat tar = imread("../data/pictures/original/tar.bmp", 1);
+	Mat base = imread("../data/pictures/original/lecture3.bmp", 1);
+	Mat compare = imread("../data/pictures/original/compare1.bmp", 1);
+	Mat compare2 = imread("../data/pictures/original/compare2.bmp", 1);
+	Mat cat = imread("../data/pictures/original/cat1.jpg", 1);
+	Mat dog = imread("../data/pictures/original/dog1.jpg", 1);
+	Mat text = imread("../data/pictures/original/text1.jpg", 1);
 };
 struct VIDEO
 {
-	std::string frog = "../data/videos/original/frog1.mp4";
-	std::string people = "../data/videos/original/people1.mp4";
-	std::string ship = "../data/videos/original/ship1.mp4";
-	std::string bloom = "../data/videos/original/bloom1.mp4";
-	std::string surfing = "../data/videos/original/surfing1.mp4";
+	VideoCapture frog = VideoCapture("../data/videos/original/frog1.mp4");
+	VideoCapture people = VideoCapture("../data/videos/original/people1.mp4");
+	VideoCapture ship = VideoCapture("../data/videos/original/ship1.mp4");
+	VideoCapture bloom = VideoCapture("../data/videos/original/bloom1.mp4");
+	VideoCapture surfing = VideoCapture("../data/videos/original/surfing1.mp4");
 };
 struct FEATURE
 {
@@ -45,6 +45,7 @@ struct FEATURE
 	std::vector<Point> corner;
 	double* histogram;
 };
+
 class CVLAB
 {
 private:
@@ -61,6 +62,7 @@ public:
 	Mat EDGE(Mat input);
 	Mat CORNER(Mat input, int option = 0);   // Option 0: Harris
 	Mat LINKCORNER(Mat input1, Mat input2);
+	Mat MYORB(Mat img1, Mat img2, Size window);
 
 	// 이미지 feature 추출을 위한 함수
 	void PixelValue(Mat img, int x, int y);
