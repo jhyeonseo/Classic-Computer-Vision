@@ -317,36 +317,40 @@ double* CVLAB::HOG(Mat input, Size block, int interval, int binsize)
 	double* temp = (double*)calloc(binsize, sizeof(double));
 	Mat phase = PHASE(GRADIENT(input));
 	Mat mag = MAGNITUDE(GRADIENT(input));
-		for (int y = 0; y < input.rows - h; y++)
+	for (int y = 0; y < input.rows - h + 1; y += interval)
+	{
+		for (int x = 0; x < input.cols - w + 1; x += interval)
 		{
-			for (int x = 0; x < input.cols - w; w++)
+			int bx = x / interval;
+			int by = y / interval;
+			// x, y = 이미지에서 block의 첫번째 픽셀에 해당하는 좌표
+			// bx, by = block의 좌표
+			for (int i = 0; i < h; i++)
 			{
-				// x, y = block의 첫번째 픽셀
-				for (int i = y; i <= h; i++)
+				for (int j = 0; j < w; j++)
 				{
-					for (int j = x; j <= w; j++)
-					{
-						int binindex;
-						double degree = phase.at<double>(y + i, x + j) * 57.2958;
-						if (degree < 0.0)
-							degree += 180;
-						if (degree >= 180.0)
-							binindex = degree / bininterval - 1;
-						else
-							binindex = degree / bininterval;
+					int binindex;
+					double degree = phase.at<double>(y + i, x + j) * 57.2958;
+					if (degree < 0.0)
+						degree += 180;
+					if (degree >= 180.0)
+						binindex = 0;
+					else
+						binindex = degree / bininterval;
 
-						temp[binindex] += mag.at<double>(y + i, x + j);
-					}
+					temp[binindex] += mag.at<double>(y + i, x + j);
 				}
-				NORMALIZE(temp, binsize);
-				for (int i = 0; i < binsize; i++)
-				{
-					output[y * xblock + x + i] = temp[i];
-					temp[i] = 0;
-				}
+
+			}
+			NORMALIZE(temp, binsize);
+			for (int i = 0; i < binsize; i++)
+			{
+				output[by * xblock * binsize + bx * binsize + i] = temp[i];
+				temp[i] = 0;
 			}
 		}
-		return output;
+	}
+	return output;
 }
 double* CVLAB::HOG(Mat input, Size block, std::vector<Point> point, int binsize)
 {
@@ -365,9 +369,9 @@ double* CVLAB::HOG(Mat input, Size block, std::vector<Point> point, int binsize)
 		{
 			for (int j = cx - w/2; j <= cx + w/2; j++)
 			{
-				// p = 코너의 순번
-				// cx1, cy2 = 코너의 중심 좌표
-				// i, j = 코너 중심 block안의 픽셀의 좌표
+				// p = 좌표의 순번
+				// cx, cy = block의 중심 좌표
+				// i, j = block안의 픽셀의 좌표
 				if (j < 0 || j >= input.cols || i < 0 || i >= input.rows)
 					continue;
 				int binindex;
@@ -375,7 +379,7 @@ double* CVLAB::HOG(Mat input, Size block, std::vector<Point> point, int binsize)
 				if (degree < 0.0)
 					degree += 180;
 				if (degree >= 180.0)
-					binindex = degree / bininterval - 1;
+					binindex = 0;
 				else
 					binindex = degree / bininterval;
 
@@ -949,14 +953,14 @@ void CVLAB::NORMALIZE(double* input, double inputsize, double range)
 {
 	if (range != 0)
 	{
-		double max = 0;
-		double min = 0;
+		double max = input[0];
+		double min = input[0];
 		double ratio = range;  // normalize factor
 		for (int i = 0; i < inputsize; i++)
 		{
 			if (input[i] > max)
 				max = input[i];
-			else if (input[i] < min)
+			if (input[i] < min)
 				min = input[i];
 		}
 		if (max != min)
@@ -964,27 +968,54 @@ void CVLAB::NORMALIZE(double* input, double inputsize, double range)
 		else
 			return;
 		for (int i = 0; i < inputsize; i++)
-			input[i] = input[i] * ratio;
-		
+		{
+			input[i] = (input[i]-min) * ratio;
+		}
 	}
 	else
 	{
 		double value = 0;
 		for (int i = 0; i < inputsize; i++)
 			value += input[i] * input[i];
-		value = std::sqrt(value);
-		for (int i = 0; i < inputsize; i++)
-			input[i] = input[i] / value;
-			
+		if (value != 0)
+		{
+			value = std::sqrt(value);
+			for (int i = 0; i < inputsize; i++)
+				input[i] = input[i] / value;
+		}
 	}
 }
-double CVLAB::DISTANCE(double* input1, double* input2, int size)
+double CVLAB::SIMILARITY(double* input1, double* input2, int size, int type)
 {
-	double distance = 0;
-	for (int i = 0; i < size; i++)
-		distance += (input1[i] - input2[i]) * (input1[i] - input2[i]);
+	double similarity = 0;
+	if (type == 0)
+	{
+		double inner = 0;
+		double anorm = 0;
+		double bnorm = 0;
+		for (int i = 0; i < size; i++)
+		{
+			inner += input1[i] * input2[i];
+			anorm += input1[i] * input1[i];
+			bnorm += input2[i] * input2[i];
+		}
+		if (anorm == 0 || bnorm == 0)
+			similarity = 0;
+		else
+		{
+			similarity = inner / (std::sqrt(anorm) * sqrt(bnorm));
+		}
+	}
+	else if (type == 1)
+	{
+		double distance = 0;
+		for (int i = 0; i < size; i++)
+			distance += (input1[i] - input2[i]) * (input1[i] - input2[i]);
 
-	return std::sqrt(distance);
+		similarity = 1 / std::sqrt(distance);
+	}
+
+	return similarity;
 }
 
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData)

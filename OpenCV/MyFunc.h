@@ -15,14 +15,16 @@ using namespace cv::dnn;
 
 struct IMAGE
 {
-	Mat ref = imread("../data/pictures/original/ref.bmp", 1);
-	Mat tar = imread("../data/pictures/original/tar.bmp", 1);
+	Mat lena1 = imread("../data/pictures/original/lena1.bmp", 1);
+	Mat lena2 = imread("../data/pictures/original/lena2.bmp", 1);
 	Mat base = imread("../data/pictures/original/lecture3.bmp", 1);
 	Mat compare = imread("../data/pictures/original/compare1.bmp", 1);
 	Mat compare2 = imread("../data/pictures/original/compare2.bmp", 1);
 	Mat cat = imread("../data/pictures/original/cat1.jpg", 1);
 	Mat dog = imread("../data/pictures/original/dog1.jpg", 1);
 	Mat text = imread("../data/pictures/original/text1.jpg", 1);
+	Mat face_ref = imread("../data/pictures/original/face_ref.bmp", 1);
+	Mat face_tar = imread("../data/pictures/original/face_tar.bmp", 1);
 };
 struct VIDEO
 {
@@ -85,7 +87,7 @@ public:
 	Mat PHASE(Mat gradient);
 	Mat NORMALIZE(Mat input, double range = 0);  // range 0: L2 normalization
 	void NORMALIZE(double* input, double inputsize, double range = 0);
-	double DISTANCE(double* input1, double* input2, int size);
+	double SIMILARITY(double* input1, double* input2, int size, int type = 0);
 };
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData);
 
