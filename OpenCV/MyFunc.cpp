@@ -787,7 +787,7 @@ Mat CVLAB::GRADIENT(Mat input)
 	{
 		for (int x = 0; x < input.cols; x++)
 		{
-			output.at<Vec2d>(y, x) = Vec2d(grad_x.at<double>(y, x) / 2, grad_y.at<double>(y, x) / 2);
+			output.at<Vec2d>(y, x) = Vec2d(grad_x.at<double>(y, x), grad_y.at<double>(y, x));
 		}
 	}
 
