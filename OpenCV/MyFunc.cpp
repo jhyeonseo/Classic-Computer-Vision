@@ -184,42 +184,29 @@ Mat CVLAB::MYORB(Mat img1, Mat img2, Size window)
 
 	return img_com_orb;
 }
-void CVLAB::FACE_REGISTRATION()
+int CVLAB::FACE_REGISTRATION(Mat img)
 {
 	printf("Registration Start\n");
+	std::vector<Point> face = FACE_DETECTION(img);
 
-	VideoCapture cap(0);
-
-	if (!cap.isOpened())
+	if (face.size() == 2)
 	{
-		printf("Can't open the camera");
-		return ;
+		INSERT(img(Rect(face[0], face[1])));
+		printf("Registration Success\n");
+		return 1;
+	}
+	else if (face.size() > 2)
+	{
+		printf("Too many faces detected\n");
+		return 0;
+	}
+	else
+	{
+		printf("Face detection failed\n");
+		return 0;
 	}
 
-	while (1)
-	{
-		Mat img;
-		cap >> img;
-		imshow("Registration", img);
-		std::vector<Point> face = FACE_DETECTION(img);
-
-		if (face.size() == 2)
-		{
-			INSERT(img(Rect(face[0], face[1])));
-			printf("Registration Success\n");
-			return;
-		}
-		else if (face.size() > 2)
-		{
-			printf("Too many faces detected\n");
-		}
-		else
-		{
-			printf("Face detection failed\n");
-		}
-
-		waitKey(1000);
-	}
+	
 }
 void CVLAB::FACE_VERIFICATION()
 {
@@ -232,29 +219,34 @@ void CVLAB::FACE_VERIFICATION()
 
 	while (1)
 	{
-		if (this->storage.size() == 0)
-			FACE_REGISTRATION();
-		else
-		{
-			Mat img;
-			cap >> img;
-			std::vector<Point> face = FACE_DETECTION(img);
-			std::vector<Point> verified;
+		Mat img;
+		cap >> img;
 
-			// ¾ó±¼ °¨Áö + ºñ±³
+		if (this->storage.size() == 0)   // ¾ó±¼ µî·Ï
+		{
+			if (FACE_REGISTRATION(img))
+			{
+				std::vector<Point> face = FACE_DETECTION(img);
+				Mat cut = img(Rect(face[0], face[1]));
+				imshow("Reference", cut);
+			}
+		}
+		else  // ¾ó±¼ ºñ±³
+		{
+			std::vector<Point> face = FACE_DETECTION(img);
+
 			for (int i = 0; i < face.size(); i += 2)
 			{
 				Mat cut = img(Rect(face[i], face[i + 1]));
 				if (SIMILARITY(this->storage[0].lbp, LBP(cut), this->storage[0].lbpsize) > 0.875)
 					rectangle(img, face[i], face[i + 1], Scalar(0, 255, 0), 3, 8, 0);
 				else
-					rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);
-				
+					rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);	
 			}
-
-			imshow("Face Verification", img);
-			waitKey(10);
 		}
+
+		imshow("Face Verification", img);
+		waitKey(10);
 	}
 
 }

@@ -67,7 +67,7 @@ public:
 	Mat CORNER(Mat input, int option = 0);   // Option 0: Harris
 	Mat LINKCORNER(Mat input1, Mat input2);
 	Mat MYORB(Mat img1, Mat img2, Size window);
-	void FACE_REGISTRATION();    // 얼굴 등록
+	int FACE_REGISTRATION(Mat img);    // 얼굴 등록
 	void FACE_VERIFICATION();  // 실시간 얼굴 비교
 
 	// 이미지 feature 추출을 위한 함수
