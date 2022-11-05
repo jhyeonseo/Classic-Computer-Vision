@@ -229,6 +229,10 @@ void CVLAB::FACE_VERIFICATION()
 				std::vector<Point> face = FACE_DETECTION(img);
 				Mat cut = img(Rect(face[0], face[1]));
 				imshow("Reference", cut);
+				int key = waitKey(0);
+				if (key == 'r')
+					storage.pop_back();
+				
 			}
 		}
 		else  // ¾ó±¼ ºñ±³
@@ -238,10 +242,17 @@ void CVLAB::FACE_VERIFICATION()
 			for (int i = 0; i < face.size(); i += 2)
 			{
 				Mat cut = img(Rect(face[i], face[i + 1]));
-				if (SIMILARITY(this->storage[0].lbp, LBP(cut), this->storage[0].lbpsize) > 0.875)
+				double score = SIMILARITY(this->storage[0].lbp, LBP(cut), this->storage[0].lbpsize);
+				if (score > 0.875)
+				{
 					rectangle(img, face[i], face[i + 1], Scalar(0, 255, 0), 3, 8, 0);
+					putText(img, to_string(score), face[i], 1, 2, Scalar(0, 255, 0), 2, 8);
+				}
 				else
-					rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);	
+				{
+					rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);
+					putText(img, to_string(score), face[i], 1, 2, Scalar(0, 0, 255), 2, 8);
+				}
 			}
 		}
 
