@@ -4,7 +4,7 @@
 // 사용의 편리성을 위한 함수
 CVLAB::CVLAB()
 {
-	this->cascade.load("C:/opencv/sources/data/lbpcascades/lbpcascade_frontalface.xml");
+	this->cascade.load("C:/opencv/sources/data/lbpcascades/lbpcascade_frontalface_improved.xml");
 }
 void CVLAB::INSERT(Mat input)
 {
@@ -227,12 +227,11 @@ void CVLAB::FACE_VERIFICATION()
 			if (FACE_REGISTRATION(img))
 			{
 				std::vector<Point> face = FACE_DETECTION(img);
-				Mat cut = img(Rect(face[0], face[1]));
+				Mat cut = RESIZE(img(Rect(face[0], face[1])), Size(416, 416));
 				imshow("Reference", cut);
 				int key = waitKey(0);
 				if (key == 'r')
 					storage.pop_back();
-				
 			}
 		}
 		else  // 얼굴 비교
