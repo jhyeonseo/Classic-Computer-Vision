@@ -192,7 +192,8 @@ int CVLAB::FACE_REGISTRATION(Mat img)
 
 	for (int i = 0; i < face.size(); i += 2)
 	{
-		Mat cut = RESIZE(img(Rect(face[i], face[i + 1])), Size(300, 300));
+		Mat cut;
+		resize(img(Rect(face[i], face[i + 1])), cut, Size(300, 300));
 		imshow("Reference", cut);
 		int key = waitKey(0);
 		if (key == 's')
