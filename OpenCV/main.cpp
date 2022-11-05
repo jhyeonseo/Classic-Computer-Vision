@@ -9,7 +9,7 @@ VIDEO video;
 using namespace cv;
 int main()
 {
-	mylab.FACE_VERIFICATION();
+	mylab.FACE_VERIFICATION(video.people2);
 
 	return 0;
 }

@@ -17,6 +17,8 @@ struct IMAGE
 {
 	Mat lena1 = imread("../data/pictures/original/lena1.bmp", 1);
 	Mat lena2 = imread("../data/pictures/original/lena2.bmp", 1);
+	Mat taylor1 = imread("../data/pictures/original/taylor1.jpg", 1);
+	Mat taylor2 = imread("../data/pictures/original/taylor2.jpg", 1);
 	Mat base = imread("../data/pictures/original/lecture3.bmp", 1);
 	Mat compare = imread("../data/pictures/original/compare1.bmp", 1);
 	Mat compare2 = imread("../data/pictures/original/compare2.bmp", 1);
@@ -30,6 +32,7 @@ struct VIDEO
 {
 	VideoCapture frog = VideoCapture("../data/videos/original/frog1.mp4");
 	VideoCapture people = VideoCapture("../data/videos/original/people1.mp4");
+	VideoCapture people2 = VideoCapture("../data/videos/original/people2.mp4");
 	VideoCapture ship = VideoCapture("../data/videos/original/ship1.mp4");
 	VideoCapture bloom = VideoCapture("../data/videos/original/bloom1.mp4");
 	VideoCapture surfing = VideoCapture("../data/videos/original/surfing1.mp4");
@@ -68,7 +71,8 @@ public:
 	Mat LINKCORNER(Mat input1, Mat input2);
 	Mat MYORB(Mat img1, Mat img2, Size window);
 	int FACE_REGISTRATION(Mat img);    // 얼굴 등록
-	void FACE_VERIFICATION();  // 실시간 얼굴 비교
+	void FACE_VERIFICATION(VideoCapture cap);  // 실시간 얼굴 비교
+	void FACE_VERIFICATION(VideoCapture cap, Mat ref);
 
 	// 이미지 feature 추출을 위한 함수
 	void PixelValue(Mat img, int x, int y);

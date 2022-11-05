@@ -188,51 +188,37 @@ int CVLAB::FACE_REGISTRATION(Mat img)
 {
 	printf("Registration Start\n");
 	std::vector<Point> face = FACE_DETECTION(img);
+	int flag = 0;
 
-	if (face.size() == 2)
+	for (int i = 0; i < face.size(); i += 2)
 	{
-		INSERT(img(Rect(face[0], face[1])));
-		printf("Registration Success\n");
-		return 1;
+		Mat cut = RESIZE(img(Rect(face[i], face[i + 1])), Size(300, 300));
+		imshow("Reference", cut);
+		int key = waitKey(0);
+		if (key == 's')
+		{
+			INSERT(img(Rect(face[i], face[i + 1])));
+			flag++;
+		}
 	}
-	else if (face.size() > 2)
-	{
-		printf("Too many faces detected\n");
-		return 0;
-	}
-	else
-	{
-		printf("Face detection failed\n");
-		return 0;
-	}
-
 	
+	return flag;
 }
-void CVLAB::FACE_VERIFICATION()
+void CVLAB::FACE_VERIFICATION(VideoCapture cap)
 {
-	VideoCapture cap(0);
-	if (!cap.isOpened())
-	{
-		printf("Can't open the camera");
-		return;
-	}
-
 	while (1)
 	{
 		Mat img;
 		cap >> img;
+		if (img.empty())
+			break;
 
 		if (this->storage.size() == 0)   // ¾ó±¼ µî·Ï
 		{
 			if (FACE_REGISTRATION(img))
-			{
-				std::vector<Point> face = FACE_DETECTION(img);
-				Mat cut = RESIZE(img(Rect(face[0], face[1])), Size(416, 416));
-				imshow("Reference", cut);
-				int key = waitKey(0);
-				if (key == 'r')
-					storage.pop_back();
-			}
+				printf("Face registration success\n");
+			else
+				printf("Face registration failed\n");
 		}
 		else  // ¾ó±¼ ºñ±³
 		{
@@ -242,7 +228,7 @@ void CVLAB::FACE_VERIFICATION()
 			{
 				Mat cut = img(Rect(face[i], face[i + 1]));
 				double score = SIMILARITY(this->storage[0].lbp, LBP(cut), this->storage[0].lbpsize);
-				if (score > 0.875)
+				if (score > 0.92)
 				{
 					rectangle(img, face[i], face[i + 1], Scalar(0, 255, 0), 3, 8, 0);
 					putText(img, to_string(score), face[i], 1, 2, Scalar(0, 255, 0), 2, 8);
@@ -252,6 +238,45 @@ void CVLAB::FACE_VERIFICATION()
 					rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);
 					putText(img, to_string(score), face[i], 1, 2, Scalar(0, 0, 255), 2, 8);
 				}
+			}
+		}
+
+		imshow("Face Verification", img);
+		waitKey(10);
+	}
+
+}
+void CVLAB::FACE_VERIFICATION(VideoCapture cap, Mat ref)
+{
+	if (FACE_REGISTRATION(ref) == 0)
+	{
+		printf("Face registration failed\n");
+		return;
+	}
+	else
+		printf("Face registration success\n");
+
+	while (1)
+	{
+		Mat img;
+		cap >> img;
+		if (img.empty())
+			break;
+
+		std::vector<Point> face = FACE_DETECTION(img);
+		for (int i = 0; i < face.size(); i += 2)
+		{
+			Mat cut = img(Rect(face[i], face[i + 1]));
+			double score = SIMILARITY(this->storage[0].lbp, LBP(cut), this->storage[0].lbpsize);
+			if (score > 0.92)
+			{
+				rectangle(img, face[i], face[i + 1], Scalar(0, 255, 0), 3, 8, 0);
+				putText(img, to_string(score), face[i], 1, 2, Scalar(0, 255, 0), 2, 8);
+			}
+			else
+			{
+				rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);
+				putText(img, to_string(score), face[i], 1, 2, Scalar(0, 0, 255), 2, 8);
 			}
 		}
 
@@ -417,88 +442,68 @@ std::vector<Point> CVLAB::HARRIS(Mat input, Size window, double threshold)
 }
 double* CVLAB::LBP(Mat img)
 {
+	int WIN = 300;
 	Mat ref;
-	if (img.channels() == 3)
-		ref = GRAY(img);
-	else
-		ref = img;
+	resize(img, ref, Size(WIN, WIN));
+	if (ref.channels() == 3)
+		cvtColor(ref, ref, COLOR_BGR2GRAY);
 
-	Mat LBP(ref.rows, ref.cols, CV_8UC1);
+
+	Mat LBP(WIN, WIN, CV_8UC1);
 	// LBP MAP 
-	for (int y = 1; y < ref.rows - 1; y++)
+	for (int y = 1; y < WIN - 1; y++)
 	{
-		for (int x = 1; x < ref.cols - 1; x++)
+		for (int x = 1; x < WIN - 1; x++)
 		{
 			uchar pixel = ref.at<uchar>(y, x);
-			uchar lbp = 0;
+			int lbp = 0;
 
-			if (pixel > ref.at<uchar>(y, x + 1))
-			{
-				lbp += 1;
-			}
-			if (pixel > ref.at<uchar>(y + 1, x + 1))
-			{
-				lbp += 2;
-			}
+			if (pixel > ref.at<uchar>(y, x + 1))			
+				lbp += 1;		
+			if (pixel > ref.at<uchar>(y + 1, x + 1))			
+				lbp += 2;			
 			if (pixel > ref.at<uchar>(y + 1, x))
-			{
 				lbp += 4;
-			}
-			if (pixel > ref.at<uchar>(y + 1, x - 1))
-			{
-				lbp += 8;
-			}
-			if (pixel > ref.at<uchar>(y, x - 1))
-			{
-				lbp += 16;
-			}
+			if (pixel > ref.at<uchar>(y + 1, x - 1))			
+				lbp += 8;			
+			if (pixel > ref.at<uchar>(y, x - 1))			
+				lbp += 16;		
 			if (pixel > ref.at<uchar>(y - 1, x - 1))
-			{
-				lbp += 32;
-			}
+				lbp += 32;			
 			if (pixel > ref.at<uchar>(y - 1, x))
-			{
-				lbp += 64;
-			}
+				lbp += 64;		
 			if (pixel > ref.at<uchar>(y - 1, x + 1))
-			{
 				lbp += 128;
-			}
-
+			
 			LBP.at<uchar>(y, x) = lbp;
+			//printf("%d\n", LBP.at<uchar>(y, x));
 		}
 	}
-
-	int bh = ref.rows / 3;
-	int bw = ref.cols / 3;
-	int yinterval = bh / 2;
-	int xinterval = bw / 2;
-	int xblock = (ref.cols - bw) / xinterval + 1;
-	int yblock = (ref.rows - bh) / yinterval + 1;
-	double* output = (double*)calloc(xblock * yblock * 256, sizeof(double));
-	//printf("%d %d %d\n", xblock * yblock * 256, ref.rows, ref.cols);
-	for (int y = 0; y < ref.rows - bh; y += yinterval)
+	//imshow("LBP", LBP);
+	//imshow("ORGINAL", ref);
+	//waitKey(0);
+	int BLK = WIN / 3;
+	int interval = BLK / 2;
+	int block = (WIN - BLK) / interval + 1;
+	double* output = (double*)calloc(block * block * 256, sizeof(double));
+	//printf("%d %d %d\n", block * block * 256, ref.rows, ref.cols);
+	for (int y = 0; y <= WIN - BLK; y += interval)
 	{
-		for (int x = 0; x < ref.cols - bw; x += xinterval)
+		for (int x = 0; x <= WIN - BLK; x += interval)
 		{
-			int by = y / yinterval;
-			int bx = x / xinterval;
+			int by = y / interval;
+			int bx = x / interval;
 			//printf("%d %d\n", bx,by);
 
 			double temp[256] = { 0, };
-			for (int i = 0; i <= bh; i++)
-			{
-				for (int j = 0; j <= bw; j++)
-				{
-					int bin = LBP.at<uchar>(y + i, x + j);
-					temp[bin] += 1;
-				}
-			}
+			for (int yy = y; yy < y + BLK; yy++)
+				for (int xx = x; xx < x + BLK; xx++)
+					temp[LBP.at<uchar>(yy, xx)] += 1;
+				
 			NORMALIZE(temp, 256);
-
 			for (int i = 0; i < 256; i++)
 			{
-				output[by * xblock * 256 + bx * 256 + i] = temp[i];
+				output[by * block * 256 + bx * 256 + i] = temp[i];
 				//printf("(%d,%d) %d %f\n", x, y, i, temp[i]);
 				//printf("%d\n", by * xblock * 256 + bx * 256 + i);
 			}
