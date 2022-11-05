@@ -41,36 +41,42 @@ struct FEATURE
 	Mat grad;
 	Mat magnitude;
 	Mat phase;
+	int hogsize;
+	int lbpsize;
 	
 	// Feature information
 	std::vector<Point> edge;
 	std::vector<Point> corner;
-	double* histogram;
+	double* hog;
+	double* lbp;
 };
 
 class CVLAB
 {
 private:
 	std::vector<FEATURE>storage;
+	CascadeClassifier cascade;
 
 public:
 	// 사용의 편리성을 위한 함수
 	CVLAB();
-	void Insert(Mat img);
-	//void Editor();
-	void Print(Mat input);
+	void INSERT(Mat img);
 
 	// Application을 위한 함수
 	Mat EDGE(Mat input);
 	Mat CORNER(Mat input, int option = 0);   // Option 0: Harris
 	Mat LINKCORNER(Mat input1, Mat input2);
 	Mat MYORB(Mat img1, Mat img2, Size window);
+	void FACE_REGISTRATION();    // 얼굴 등록
+	void FACE_VERIFICATION();  // 실시간 얼굴 비교
 
 	// 이미지 feature 추출을 위한 함수
 	void PixelValue(Mat img, int x, int y);
 	double* HOG(Mat input, Size block, int interval = 8, int binsize = 9);  // Histograms of oriented gradients
 	double* HOG(Mat input, Size block, std::vector<Point> point, int binsize = 9);
 	std::vector<Point> HARRIS(Mat input, Size window, double threshold = 0.015);     // Corner point detection
+	double* LBP(Mat img);   // Local Binary Pattern
+	std::vector<Point> FACE_DETECTION(Mat img);    // Face Position Detector
 
 	// 이미지 변환을 위한 함수
 	Mat GRAY(Mat img);

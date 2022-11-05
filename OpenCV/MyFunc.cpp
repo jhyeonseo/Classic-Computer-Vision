@@ -1,125 +1,22 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "MyFunc.h"
 
+// 사용의 편리성을 위한 함수
 CVLAB::CVLAB()
 {
+	this->cascade.load("C:/opencv/sources/data/lbpcascades/lbpcascade_frontalface.xml");
 }
-void CVLAB::Insert(Mat input)
+void CVLAB::INSERT(Mat input)
 {
 	FEATURE information;
 	information.image = input;
 	information.grad = GRADIENT(input);
 	information.magnitude = MAGNITUDE(information.grad);
 	information.phase = PHASE(information.grad);
+	information.lbp = LBP(input);
+	information.lbpsize = 6400;
 
 	this->storage.push_back(information);
-}
-/*
-void CVLAB::Editor()
-{
-	char command;
-	std::cin >> command;
-
-	int x, y, flags;
-	int* event = new int[this->storage.size()];
-	void*** MouseData = new void** [this->storage.size()];
-	for (int i = 0; i < this->storage.size(); i++)
-		MouseData[i] = new void* [4];
-
-
-	for (int i = 0; i < this->storage.size(); i++)
-	{
-		event[i] = -1;
-		MouseData[i][0] = &event[i];
-		MouseData[i][1] = &x;
-		MouseData[i][2] = &y;
-		MouseData[i][3] = &flags;
-		cv::namedWindow(std::to_string(i));
-		setMouseCallback(std::to_string(i), MOUSEINF, MouseData[i]);
-	}
-	if (command == 'p')
-	{
-		while (1)
-		{
-			waitKey(1);
-
-			for (int i = 0; i < this->storage.size(); i++)
-			{
-				imshow(std::to_string(i), this->storage[i][0]);
-
-				if (event[i] == EVENT_LBUTTONDOWN)
-				{
-					std::cout << "Window " << i << " ";
-					PixelValue(this->storage[i][0], x, y);
-				}
-				event[i] = -1;
-			}
-		}
-	}
-	else if (command == 'g')
-	{
-		Mat* gray = new Mat[this->storage.size()];
-		while (1)
-		{
-			for (int i = 0; i < this->storage.size(); i++)
-			{
-				if (event[i] == EVENT_MOUSEMOVE)
-				{
-					gray[i] = GRAY(this->storage[i][0], x, y, 100);
-					imshow(std::to_string(i), gray[i]);
-				}
-				waitKey(1);
-				event[i] = -1;
-			}
-		}
-		delete[]gray;
-	}
-
-
-	delete[]event;
-	for (int i = 0; i < this->storage.size(); i++)
-		delete[]MouseData[i];
-	delete[]MouseData;
-
-}
-*/
-void CVLAB::Print(Mat input)
-{
-	if (input.type() == CV_64FC1)
-	{
-		for (int y = 0; y < input.rows; y++)
-		{
-			printf("[ ");
-			for (int x = 0; x < input.cols; x++)
-			{
-				printf("%f ", input.at<double>(y, x));
-			}
-			printf("]\n");
-		}
-	}
-	else if (input.type() == CV_64FC2)
-	{
-		for (int y = 0; y < input.rows; y++)
-		{
-			printf("[ ");
-			for (int x = 0; x < input.cols; x++)
-			{
-				printf("(%f, %f) ", input.at<Vec2d>(y, x)[0], input.at<Vec2d>(y, x)[1]);
-			}
-			printf("]\n");
-		}
-	}
-	else if (input.type() == CV_8UC1)
-	{
-		for (int y = 0; y < input.rows; y++)
-		{
-			for (int x = 0; x < input.cols; x++)
-			{
-				printf("%d ", input.at<int>(y, x));
-			}
-			printf("\n");
-		}
-	}
 }
 
 // Application을 위한 함수
@@ -287,6 +184,80 @@ Mat CVLAB::MYORB(Mat img1, Mat img2, Size window)
 
 	return img_com_orb;
 }
+void CVLAB::FACE_REGISTRATION()
+{
+	printf("Registration Start\n");
+
+	VideoCapture cap(0);
+
+	if (!cap.isOpened())
+	{
+		printf("Can't open the camera");
+		return ;
+	}
+
+	while (1)
+	{
+		Mat img;
+		cap >> img;
+		imshow("Registration", img);
+		std::vector<Point> face = FACE_DETECTION(img);
+
+		if (face.size() == 2)
+		{
+			INSERT(img(Rect(face[0], face[1])));
+			printf("Registration Success\n");
+			return;
+		}
+		else if (face.size() > 2)
+		{
+			printf("Too many faces detected\n");
+		}
+		else
+		{
+			printf("Face detection failed\n");
+		}
+
+		waitKey(1000);
+	}
+}
+void CVLAB::FACE_VERIFICATION()
+{
+	VideoCapture cap(0);
+	if (!cap.isOpened())
+	{
+		printf("Can't open the camera");
+		return;
+	}
+
+	while (1)
+	{
+		if (this->storage.size() == 0)
+			FACE_REGISTRATION();
+		else
+		{
+			Mat img;
+			cap >> img;
+			std::vector<Point> face = FACE_DETECTION(img);
+			std::vector<Point> verified;
+
+			// 얼굴 감지 + 비교
+			for (int i = 0; i < face.size(); i += 2)
+			{
+				Mat cut = img(Rect(face[i], face[i + 1]));
+				if (SIMILARITY(this->storage[0].lbp, LBP(cut), this->storage[0].lbpsize) > 0.875)
+					rectangle(img, face[i], face[i + 1], Scalar(0, 255, 0), 3, 8, 0);
+				else
+					rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);
+				
+			}
+
+			imshow("Face Verification", img);
+			waitKey(10);
+		}
+	}
+
+}
 
 // 이미지 feature 추출을 위한 함수
 void CVLAB::PixelValue(Mat img, int x, int y)
@@ -441,6 +412,114 @@ std::vector<Point> CVLAB::HARRIS(Mat input, Size window, double threshold)
 	}
 
 	return corner;
+}
+double* CVLAB::LBP(Mat img)
+{
+	Mat ref;
+	if (img.channels() == 3)
+		ref = GRAY(img);
+	else
+		ref = img;
+
+	Mat LBP(ref.rows, ref.cols, CV_8UC1);
+	// LBP MAP 
+	for (int y = 1; y < ref.rows - 1; y++)
+	{
+		for (int x = 1; x < ref.cols - 1; x++)
+		{
+			uchar pixel = ref.at<uchar>(y, x);
+			uchar lbp = 0;
+
+			if (pixel > ref.at<uchar>(y, x + 1))
+			{
+				lbp += 1;
+			}
+			if (pixel > ref.at<uchar>(y + 1, x + 1))
+			{
+				lbp += 2;
+			}
+			if (pixel > ref.at<uchar>(y + 1, x))
+			{
+				lbp += 4;
+			}
+			if (pixel > ref.at<uchar>(y + 1, x - 1))
+			{
+				lbp += 8;
+			}
+			if (pixel > ref.at<uchar>(y, x - 1))
+			{
+				lbp += 16;
+			}
+			if (pixel > ref.at<uchar>(y - 1, x - 1))
+			{
+				lbp += 32;
+			}
+			if (pixel > ref.at<uchar>(y - 1, x))
+			{
+				lbp += 64;
+			}
+			if (pixel > ref.at<uchar>(y - 1, x + 1))
+			{
+				lbp += 128;
+			}
+
+			LBP.at<uchar>(y, x) = lbp;
+		}
+	}
+
+	int bh = ref.rows / 3;
+	int bw = ref.cols / 3;
+	int yinterval = bh / 2;
+	int xinterval = bw / 2;
+	int xblock = (ref.cols - bw) / xinterval + 1;
+	int yblock = (ref.rows - bh) / yinterval + 1;
+	double* output = (double*)calloc(xblock * yblock * 256, sizeof(double));
+	//printf("%d %d %d\n", xblock * yblock * 256, ref.rows, ref.cols);
+	for (int y = 0; y < ref.rows - bh; y += yinterval)
+	{
+		for (int x = 0; x < ref.cols - bw; x += xinterval)
+		{
+			int by = y / yinterval;
+			int bx = x / xinterval;
+			//printf("%d %d\n", bx,by);
+
+			double temp[256] = { 0, };
+			for (int i = 0; i <= bh; i++)
+			{
+				for (int j = 0; j <= bw; j++)
+				{
+					int bin = LBP.at<uchar>(y + i, x + j);
+					temp[bin] += 1;
+				}
+			}
+			NORMALIZE(temp, 256);
+
+			for (int i = 0; i < 256; i++)
+			{
+				output[by * xblock * 256 + bx * 256 + i] = temp[i];
+				//printf("(%d,%d) %d %f\n", x, y, i, temp[i]);
+				//printf("%d\n", by * xblock * 256 + bx * 256 + i);
+			}
+		}
+	}
+
+	return output;
+}
+std::vector<Point> CVLAB::FACE_DETECTION(Mat img)
+{
+	std::vector<Rect> faces;
+	std::vector<Point> p;
+	this->cascade.detectMultiScale(img, faces, 1.1, 4, 0 | CASCADE_SCALE_IMAGE, Size(10, 10));
+	for (int y = 0; y < faces.size(); y++)
+	{
+		Point lb(faces[y].x + faces[y].width, faces[y].y + faces[y].height);
+		Point tr(faces[y].x, faces[y].y);
+
+		p.push_back(lb);
+		p.push_back(tr);
+	}
+
+	return p;
 }
 
 // 이미지 변환을 위한 함수
