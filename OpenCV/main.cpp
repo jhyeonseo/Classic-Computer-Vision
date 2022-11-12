@@ -6,7 +6,7 @@
 CVLAB mylab;
 IMAGE image;
 VIDEO video;
-using namespace cv;
+
 int main()
 {
 	mylab.FACE_VERIFICATION(video.people2);

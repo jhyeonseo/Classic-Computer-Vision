@@ -8,6 +8,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+
 #include "utils.h"
 
 using namespace cv;
@@ -71,8 +72,8 @@ public:
 	Mat LINKCORNER(Mat input1, Mat input2);
 	Mat MYORB(Mat img1, Mat img2, Size window);
 	int FACE_REGISTRATION(Mat img);    // 얼굴 등록
-	void FACE_VERIFICATION(VideoCapture cap);  // 실시간 얼굴 비교
-	void FACE_VERIFICATION(VideoCapture cap, Mat ref);
+	void FACE_VERIFICATION(VideoCapture cap);  // 실시간 얼굴 비교 (Landmark 사용)
+	void FACE_VERIFICATION(VideoCapture cap, Mat ref);  // 실시간 얼굴 비교 (미완성)
 
 	// 이미지 feature 추출을 위한 함수
 	void PixelValue(Mat img, int x, int y);
@@ -80,7 +81,9 @@ public:
 	double* HOG(Mat input, Size block, std::vector<Point> point, int binsize = 9);
 	std::vector<Point> HARRIS(Mat input, Size window, double threshold = 0.015);     // Corner point detection
 	double* LBP(Mat img);   // Local Binary Pattern
+	double* LBP(Mat img, std::vector<Point> point);
 	std::vector<Point> FACE_DETECTION(Mat img);    // Face Position Detector
+	std::vector<Point> FACE_LDMARK(Mat img);       // Face Landmark Detector
 
 	// 이미지 변환을 위한 함수
 	Mat GRAY(Mat img);
@@ -100,4 +103,22 @@ public:
 	double SIMILARITY(double* input1, double* input2, int size, int type = 0);
 };
 void MOUSEINF(int event, int x, int y, int flags, void* MouseData);
+
+const char lbp_lookup[256] = {
+0, 1, 2, 3, 4, 58, 5, 6, 7, 58, 58, 58, 8, 58, 9, 10,
+11, 58, 58, 58, 58, 58, 58, 58, 12, 58, 58, 58, 13, 58, 14, 15,
+16, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+17, 58, 58, 58, 58, 58, 58, 58, 18, 58, 58, 58, 19, 58, 20, 21,
+22, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+23, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+24, 58, 58, 58, 58, 58, 58, 58, 25, 58, 58, 58, 26, 58, 27, 28,
+29, 30, 58, 31, 58, 58, 58, 32, 58, 58, 58, 58, 58, 58, 58, 33,
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 34,
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 35,
+36, 37, 58, 38, 58, 58, 58, 39, 58, 58, 58, 58, 58, 58, 58, 40,
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 41,
+42, 43, 58, 44, 58, 58, 58, 45, 58, 58, 58, 58, 58, 58, 58, 46,
+47, 48, 58, 49, 58, 58, 58, 50, 51, 52, 58, 53, 54, 55, 56, 57 };
 

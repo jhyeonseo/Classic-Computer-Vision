@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "MyFunc.h"
+#include "ldmarkmodel.h"
 
 // 사용의 편리성을 위한 함수
 CVLAB::CVLAB()
@@ -13,8 +14,6 @@ void CVLAB::INSERT(Mat input)
 	information.grad = GRADIENT(input);
 	information.magnitude = MAGNITUDE(information.grad);
 	information.phase = PHASE(information.grad);
-	information.lbp = LBP(input);
-	information.lbpsize = 6400;
 
 	this->storage.push_back(information);
 }
@@ -187,18 +186,28 @@ Mat CVLAB::MYORB(Mat img1, Mat img2, Size window)
 int CVLAB::FACE_REGISTRATION(Mat img)
 {
 	printf("Registration Start\n");
-	std::vector<Point> face = FACE_DETECTION(img);
+	std::vector<Point> ldmark = FACE_LDMARK(img);
+	Mat copy = img.clone();
 	int flag = 0;
 
-	for (int i = 0; i < face.size(); i += 2)
+	if (ldmark.size() != 0)
 	{
-		Mat cut;
-		resize(img(Rect(face[i], face[i + 1])), cut, Size(300, 300));
-		imshow("Reference", cut);
+		for (int p = 0; p < ldmark.size(); p++)
+		{
+			cv::putText(copy, to_string(p), ldmark[p], 0.5, 0.5, Scalar(0, 0, 255));
+			circle(copy, ldmark[p], 2, cv::Scalar(0, 0, 255), -1);
+		}
+
+		Point facescape((ldmark[18].x - ldmark[9].x) * 0.75, (ldmark[30].y - ldmark[0].y) * 0.75);
+		Rect box(ldmark[3] - facescape, ldmark[3] + facescape);
+		imshow("Reference", copy(box));
 		int key = waitKey(0);
 		if (key == 's')
 		{
-			INSERT(img(Rect(face[i], face[i + 1])));
+			INSERT(img);
+			this->storage[0].lbp = LBP(img, ldmark);
+			this->storage[0].lbpsize = ldmark.size() * 59;
+
 			flag++;
 		}
 	}
@@ -213,7 +222,6 @@ void CVLAB::FACE_VERIFICATION(VideoCapture cap)
 		cap >> img;
 		if (img.empty())
 			break;
-
 		if (this->storage.size() == 0)   // 얼굴 등록
 		{
 			if (FACE_REGISTRATION(img))
@@ -223,27 +231,32 @@ void CVLAB::FACE_VERIFICATION(VideoCapture cap)
 		}
 		else  // 얼굴 비교
 		{
-			std::vector<Point> face = FACE_DETECTION(img);
+			std::vector<Point> ldmark = FACE_LDMARK(img);
 
-			for (int i = 0; i < face.size(); i += 2)
+			if (ldmark.size() != 0)
 			{
-				Mat cut = img(Rect(face[i], face[i + 1]));
-				double score = SIMILARITY(this->storage[0].lbp, LBP(cut), this->storage[0].lbpsize);
+				Point facescape((ldmark[18].x - ldmark[9].x) * 0.75, (ldmark[30].y - ldmark[0].y) * 0.75);
+				Rect box(ldmark[3] - facescape, ldmark[3] + facescape);
+				double score = SIMILARITY(this->storage[0].lbp, LBP(img, ldmark), this->storage[0].lbpsize);
+				for (int p = 0; p < ldmark.size(); p++)
+				{
+					cv::putText(img, to_string(p), ldmark[p], 0.5, 0.5, Scalar(0, 0, 255));
+					circle(img, ldmark[p], 2, cv::Scalar(0, 0, 255), -1);
+				}
 				if (score > 0.92)
 				{
-					rectangle(img, face[i], face[i + 1], Scalar(0, 255, 0), 3, 8, 0);
-					putText(img, to_string(score), face[i], 1, 2, Scalar(0, 255, 0), 2, 8);
+					rectangle(img, box, Scalar(0, 255, 0), 3, 8, 0);
+					putText(img, to_string(score), ldmark[3] + facescape, 1, 2, Scalar(0, 255, 0), 2, 8);
 				}
 				else
 				{
-					rectangle(img, face[i], face[i + 1], Scalar(0, 0, 255), 3, 8, 0);
-					putText(img, to_string(score), face[i], 1, 2, Scalar(0, 0, 255), 2, 8);
+					rectangle(img, box, Scalar(0, 0, 255), 3, 8, 0);
+					putText(img, to_string(score), ldmark[3] + facescape, 1, 2, Scalar(0, 0, 255), 2, 8);
 				}
 			}
 		}
-
 		imshow("Face Verification", img);
-		waitKey(10);
+		waitKey(5);
 	}
 
 }
@@ -486,7 +499,7 @@ double* CVLAB::LBP(Mat img)
 	int BLK = WIN / 3;
 	int interval = BLK / 2;
 	int block = (WIN - BLK) / interval + 1;
-	double* output = (double*)calloc(block * block * 256, sizeof(double));
+	double* output = (double*)calloc(block * block * 59, sizeof(double));
 	//printf("%d %d %d\n", block * block * 256, ref.rows, ref.cols);
 	for (int y = 0; y <= WIN - BLK; y += interval)
 	{
@@ -496,19 +509,80 @@ double* CVLAB::LBP(Mat img)
 			int bx = x / interval;
 			//printf("%d %d\n", bx,by);
 
-			double temp[256] = { 0, };
+			double temp[59] = { 0, };
 			for (int yy = y; yy < y + BLK; yy++)
 				for (int xx = x; xx < x + BLK; xx++)
-					temp[LBP.at<uchar>(yy, xx)] += 1;
+					temp[lbp_lookup[LBP.at<uchar>(yy, xx)]] += 1;
 				
-			NORMALIZE(temp, 256);
-			for (int i = 0; i < 256; i++)
+			NORMALIZE(temp, 59);
+			for (int i = 0; i < 59; i++)
 			{
-				output[by * block * 256 + bx * 256 + i] = temp[i];
+				output[by * block * 59 + bx * 59 + i] = temp[i];
 				//printf("(%d,%d) %d %f\n", x, y, i, temp[i]);
 				//printf("%d\n", by * xblock * 256 + bx * 256 + i);
 			}
 		}
+	}
+
+	return output;
+}
+double* CVLAB::LBP(Mat img, std::vector<Point> point)
+{
+	Mat ref;
+	if (img.channels() == 3)
+		cvtColor(img, ref, COLOR_BGR2GRAY);
+	else
+		img.copyTo(ref);
+
+	// LBP MAP 
+	Mat LBP(ref.rows, ref.cols, CV_8UC1);
+	for (int y = 1; y < ref.rows - 1; y++)
+	{
+		for (int x = 1; x < ref.cols - 1; x++)
+		{
+			uchar pixel = ref.at<uchar>(y, x);
+			int lbp = 0;
+
+			if (pixel > ref.at<uchar>(y, x + 1))
+				lbp += 1;
+			if (pixel > ref.at<uchar>(y + 1, x + 1))
+				lbp += 2;
+			if (pixel > ref.at<uchar>(y + 1, x))
+				lbp += 4;
+			if (pixel > ref.at<uchar>(y + 1, x - 1))
+				lbp += 8;
+			if (pixel > ref.at<uchar>(y, x - 1))
+				lbp += 16;
+			if (pixel > ref.at<uchar>(y - 1, x - 1))
+				lbp += 32;
+			if (pixel > ref.at<uchar>(y - 1, x))
+				lbp += 64;
+			if (pixel > ref.at<uchar>(y - 1, x + 1))
+				lbp += 128;
+
+			LBP.at<uchar>(y, x) = lbp;
+			//printf("%d\n", LBP.at<uchar>(y, x));
+		}
+	}
+
+	double* output = (double*)calloc(point.size() * 59, sizeof(double));
+	int BLK = (point[18].x - point[9].x) / 4;
+	if (BLK <5)
+		BLK = 5;
+
+	for (int p = 0; p < point.size(); p++)
+	{
+		int x = point[p].x;
+		int y = point[p].y;
+		double temp[59] = { 0, };
+
+		for (int by = y - BLK / 2; by <= y + BLK / 2; by++)
+			for (int bx = x - BLK / 2; bx <= x + BLK / 2; bx++)
+				temp[lbp_lookup[LBP.at<uchar>(by, bx)]] += 1;
+
+		NORMALIZE(temp, 59);
+		for (int i = 0; i < 59; i++)
+			output[p * 59 + i] = temp[i];
 	}
 
 	return output;
@@ -528,6 +602,21 @@ std::vector<Point> CVLAB::FACE_DETECTION(Mat img)
 	}
 
 	return p;
+}
+std::vector<Point> CVLAB::FACE_LDMARK(Mat img)
+{
+	ldmarkmodel modelt;
+	while (!load_ldmarkmodel("../data/models/roboman-landmark-model.bin", modelt)) {}
+	Mat current_shape;
+	std::vector<Point> output;
+
+	modelt.track(img, current_shape);
+
+	int numLandmarks = current_shape.cols / 2;
+	for (int j = 27; j < numLandmarks; j++)
+		output.push_back(Point((int)current_shape.at<float>(j), (int)current_shape.at<float>(j + numLandmarks)));
+	
+	return output;
 }
 
 // 이미지 변환을 위한 함수
