@@ -1,7 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
-#include <stdlib.h>
-#include "MyFunc.h"
+#include "main.h"
 
 CVLAB mylab;
 IMAGE image;
@@ -9,7 +7,12 @@ VIDEO video;
 
 int main()
 {
-	mylab.FACE_VERIFICATION(video.people2);
+	Mat orgin = image.text;
+	Mat result;
+	threshold(orgin, result, 155, 255, THRESH_BINARY);
+	imshow("a", result);
+	SLICsegmentation(result);
+	waitKey();
 
 	return 0;
 }

@@ -149,10 +149,14 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyFunc.cpp" />
+    <ClCompile Include="SLIC.cpp" />
+    <ClCompile Include="SLICsegmentation.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="main.h" />
     <ClInclude Include="MyFunc.h" />
+    <ClInclude Include="SLIC.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
