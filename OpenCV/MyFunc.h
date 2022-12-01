@@ -8,8 +8,10 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-
+#include <opencv2/photo.hpp>
 #include "utils.h"
+
+#define Max 1000000
 
 using namespace cv;
 using namespace cv::dnn;
@@ -25,7 +27,19 @@ struct IMAGE
 	Mat compare2 = imread("../data/pictures/original/compare2.bmp", 1);
 	Mat cat = imread("../data/pictures/original/cat1.jpg", 1);
 	Mat dog = imread("../data/pictures/original/dog1.jpg", 1);
-	Mat text = imread("../data/pictures/original/text1.jpg", 1);
+	Mat text1 = imread("../data/pictures/original/text1.bmp", 1);
+	Mat text2 = imread("../data/pictures/original/text2.bmp", 1);
+	Mat text3 = imread("../data/pictures/original/text3.bmp", 1);
+	Mat text4 = imread("../data/pictures/original/text4.bmp", 1);
+	Mat text5 = imread("../data/pictures/original/text5.bmp", 1);
+	Mat text6 = imread("../data/pictures/original/text6.bmp", 1);
+	Mat text7 = imread("../data/pictures/original/text7.bmp", 1);
+	Mat alphabet = imread("../data/pictures/alphabet/alphabet.bmp", 1);
+	Mat alphabet2 = imread("../data/pictures/alphabet/alphabet2.bmp", 1);
+	Mat example1 = imread("../data/pictures/alphabet/example1.bmp", 1);
+	Mat example2 = imread("../data/pictures/alphabet/example2.bmp", 1);
+	Mat example3 = imread("../data/pictures/alphabet/example3.bmp", 1);
+	Mat example4 = imread("../data/pictures/alphabet/example4.bmp", 1);
 	Mat face_ref = imread("../data/pictures/original/face_ref.bmp", 1);
 	Mat face_tar = imread("../data/pictures/original/face_tar.bmp", 1);
 };
@@ -68,7 +82,7 @@ public:
 
 	// Application을 위한 함수
 	Mat EDGE(Mat input);
-	Mat CORNER(Mat input, int option = 0);   // Option 0: Harris
+	Mat CORNER(Mat input, double threshold, int option = 0);   // Option 0: Harris
 	Mat LINKCORNER(Mat input1, Mat input2);
 	Mat MYORB(Mat img1, Mat img2, Size window);
 	int FACE_REGISTRATION(Mat img);    // 얼굴 등록
@@ -101,24 +115,43 @@ public:
 	Mat NORMALIZE(Mat input, double range = 0);  // range 0: L2 normalization
 	void NORMALIZE(double* input, double inputsize, double range = 0);
 	double SIMILARITY(double* input1, double* input2, int size, int type = 0);
+
+	// 프로젝트 함수
+	double LETTER_COMPARE(double* input1, double* input2, int size);
+	double* LETTER_LBP(Mat img);
+	Mat threshold(Mat input, int color, int threshold);
+	Mat refine(Mat input, int pontwidth);
+	Mat paint(Mat input, Mat refined, int& count, int pontsize);
+	int recur_fill(Mat input, Mat refined, int fill, int x, int y, int pontsize);
+	void recur_remove(Mat input, int remove, int x, int y);
+	std::vector<Mat> letters(Mat input, int color, int pontwidth);
 };
-void MOUSEINF(int event, int x, int y, int flags, void* MouseData);
+
+int push(int n);
+int pop();
+
+
+
 
 const char lbp_lookup[256] = {
-0, 1, 2, 3, 4, 58, 5, 6, 7, 58, 58, 58, 8, 58, 9, 10,
+0, 1, 2, 3, 4, 58, 5, 6, 7, 58, 58, 58, 8, 58, 9, 10,         
 11, 58, 58, 58, 58, 58, 58, 58, 12, 58, 58, 58, 13, 58, 14, 15,
 16, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
 17, 58, 58, 58, 58, 58, 58, 58, 18, 58, 58, 58, 19, 58, 20, 21,
 22, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
-58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
-23, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
-24, 58, 58, 58, 58, 58, 58, 58, 25, 58, 58, 58, 26, 58, 27, 28,
-29, 30, 58, 31, 58, 58, 58, 32, 58, 58, 58, 58, 58, 58, 58, 33,
-58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 34,
-58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,  
+23, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 
+24, 58, 58, 58, 58, 58, 58, 58, 25, 58, 58, 58, 26, 58, 27, 28,  
+29, 30, 58, 31, 58, 58, 58, 32, 58, 58, 58, 58, 58, 58, 58, 33, 
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 34, 
+58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 
 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 35,
 36, 37, 58, 38, 58, 58, 58, 39, 58, 58, 58, 58, 58, 58, 58, 40,
 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 41,
 42, 43, 58, 44, 58, 58, 58, 45, 58, 58, 58, 58, 58, 58, 58, 46,
 47, 48, 58, 49, 58, 58, 58, 50, 51, 52, 58, 53, 54, 55, 56, 57 };
+
+const char letter_lookup[52] = {
+'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'
+,'b','d','a','c','e','f','h','g','i','j','k','l','m','n','o','t','p','q','r','s','u','v','w','x','y','z' };
 
