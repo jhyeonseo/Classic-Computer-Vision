@@ -244,7 +244,7 @@ void CVLAB::FACE_VERIFICATION(VideoCapture cap)
 					cv::putText(img, to_string(p), ldmark[p], 0.5, 0.5, Scalar(0, 0, 255));
 					circle(img, ldmark[p], 2, cv::Scalar(0, 0, 255), -1);
 				}
-				if (score > 0.92)
+				if (score > 0.9)
 				{
 					rectangle(img, box, Scalar(0, 255, 0), 3, 8, 0);
 					putText(img, to_string(score), ldmark[3] + facescape, 1, 2, Scalar(0, 255, 0), 2, 8);
