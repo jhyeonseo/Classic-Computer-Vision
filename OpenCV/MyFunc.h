@@ -86,8 +86,8 @@ public:
 	Mat LINKCORNER(Mat input1, Mat input2);
 	Mat MYORB(Mat img1, Mat img2, Size window);
 	int FACE_REGISTRATION(Mat img);    // 얼굴 등록
-	void FACE_VERIFICATION(VideoCapture cap);  // 실시간 얼굴 비교 (Landmark 사용)
-	void FACE_VERIFICATION(VideoCapture cap, Mat ref);  // 실시간 얼굴 비교 (미완성)
+	void FACE_VERIFICATION(VideoCapture cap);  // 실시간 얼굴 비교 (Landmark 사용, 비교할 얼굴 직접 등록)
+	void FACE_VERIFICATION(VideoCapture cap, Mat ref);  // 실시간 얼굴 비교 (Reference와 비교)
 
 	// 이미지 feature 추출을 위한 함수
 	void PixelValue(Mat img, int x, int y);
@@ -127,11 +127,6 @@ public:
 	std::vector<Mat> letters(Mat input, int color, int pontwidth);
 };
 
-int push(int n);
-int pop();
-
-
-
 
 const char lbp_lookup[256] = {
 0, 1, 2, 3, 4, 58, 5, 6, 7, 58, 58, 58, 8, 58, 9, 10,         
@@ -150,8 +145,4 @@ const char lbp_lookup[256] = {
 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 41,
 42, 43, 58, 44, 58, 58, 58, 45, 58, 58, 58, 58, 58, 58, 58, 46,
 47, 48, 58, 49, 58, 58, 58, 50, 51, 52, 58, 53, 54, 55, 56, 57 };
-
-const char letter_lookup[52] = {
-'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'
-,'b','d','a','c','e','f','h','g','i','j','k','l','m','n','o','t','p','q','r','s','u','v','w','x','y','z' };
 
