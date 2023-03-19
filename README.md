@@ -1,2 +1,2 @@
-# Fundamentals-of-Computer-Vision
-기초 컴퓨터 비전 이론 구현
+# Classic-Computer-Vision
+고전 컴퓨터 비전 이론 구현
